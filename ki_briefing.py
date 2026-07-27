@@ -167,6 +167,26 @@ def build_context_block(collected: dict) -> str:
     return "\n".join(blocks)
 
 
+def looks_garbled(text: str) -> str | None:
+    """Erkennt typische Ausfallmuster kleiner Modelle: Zeichen aus
+    unerwarteten Schriftsystemen (z.B. Thai, CJK) mitten im deutschen
+    Text, oder verdächtig viele sehr kurze 'Wort-Fragmente'. Gibt einen
+    Grund-String zurück wenn verdächtig, sonst None."""
+    unexpected_scripts = re.findall(
+        r'[\u0E00-\u0E7F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]', text
+    )
+    if unexpected_scripts:
+        sample = "".join(unexpected_scripts[:5])
+        return f"Unerwartete Schriftzeichen gefunden (z.B. '{sample}') - vermutlich korrupte Ausgabe"
+
+    # Auffällig viele abgeschnittene/verklebte Wörter (Heuristik, kein Beweis,
+    # aber ein zusätzliches Warnsignal in Kombination mit anderen Prüfungen)
+    if len(text) < 500:
+        return "Antwort verdächtig kurz für ein vollständiges Briefing"
+
+    return None
+
+
 def call_openrouter(prompt: str) -> str:
     api_key = os.environ["OPENROUTER_API_KEY"]
     headers = {
@@ -174,11 +194,13 @@ def call_openrouter(prompt: str) -> str:
         "Content-Type": "application/json",
         "HTTP-Referer": "https://github.com/",
     }
+    # Reihenfolge: erst die zuverlässigsten/größten kostenlosen Modelle,
+    # kleinere/anfälligere Modelle erst als letzter Ausweg.
     models = [
         "openai/gpt-oss-120b:free",
-        "openai/gpt-oss-20b:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
         "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "openai/gpt-oss-20b:free",
     ]
     last_error = None
     for model in models:
@@ -194,17 +216,27 @@ def call_openrouter(prompt: str) -> str:
                 logger.info(f"429 bei {model} - warte {wait}s")
                 time.sleep(wait)
                 continue
-            if resp.status_code in (400, 404):
-                last_error = resp.status_code
+            if resp.status_code in (400, 404, 500, 502, 503):
+                last_error = f"{model}: HTTP {resp.status_code} - {resp.text[:300]}"
+                logger.warning(f"Modell {model} fehlgeschlagen: {last_error}")
                 break
             resp.raise_for_status()
             data = resp.json()
             if "choices" not in data:
-                last_error = data
+                last_error = f"{model}: unerwartete Antwortstruktur - {json.dumps(data)[:300]}"
+                logger.warning(last_error)
                 break
-            logger.info(f"Modell {model} erfolgreich")
-            return data["choices"][0]["message"]["content"]
-    raise ValueError(f"Alle Modelle fehlgeschlagen. Letzter Fehler: {last_error}")
+
+            content = data["choices"][0]["message"]["content"]
+            garbled_reason = looks_garbled(content)
+            if garbled_reason:
+                last_error = f"{model}: Ausgabe verworfen - {garbled_reason}"
+                logger.warning(last_error)
+                break  # nächstes Modell versuchen statt kaputten Text zu verwenden
+
+            logger.info(f"Modell {model} erfolgreich, Ausgabe-Qualitätscheck bestanden")
+            return content
+    raise ValueError(f"Alle Modelle fehlgeschlagen oder lieferten fehlerhafte Ausgaben. Letzter Fehler: {last_error}")
 
 
 def generate_briefing_html(collected: dict, week_label: str) -> str:
@@ -215,28 +247,42 @@ def generate_briefing_html(collected: dict, week_label: str) -> str:
     prompt = f"""Du erstellst ein KI-News-Briefing für DACH-B2B-Professionals
 (HR, Management, Recht, Compliance) für: {week_label}.
 
-REGEL (unbedingt einhalten): Verwende AUSSCHLIESSLICH Informationen, die
-wörtlich im folgenden Kontext stehen. Erfinde KEINE Zahlen, Produktnamen,
-Fristen oder Ereignisse. Wenn ein Thema im Kontext nicht ausreichend
-belegt ist, lass es weg statt zu raten.
+REGEL 1 (Inhalt): Verwende AUSSCHLIESSLICH Informationen, die wörtlich im
+folgenden Kontext stehen. Erfinde KEINE Zahlen, Produktnamen, Fristen oder
+Ereignisse. Wenn ein Thema im Kontext nicht ausreichend belegt ist, lass
+es weg statt zu raten.
 
-Für JEDE Meldung: gib die exakte Quell-URL aus dem Kontext an (kopiere
-sie unverändert). Erfinde keine URLs.
+REGEL 2 (Sprache): Schreibe AUSSCHLIESSLICH auf Deutsch, in vollständigen,
+grammatikalisch korrekten Sätzen. Verwende NUR lateinische Schriftzeichen
+(keine Thai-, chinesischen, japanischen oder koreanischen Zeichen, auch
+nicht einzelne). Baue keine unvollständigen oder abgebrochenen Sätze ein -
+wenn du einen Satz nicht sauber zu Ende formulieren kannst, lass die
+gesamte Meldung weg.
+
+REGEL 3 (Quellen): Für JEDE Meldung: gib die exakte Quell-URL aus dem
+Kontext an (kopiere sie unverändert, ohne Tippfehler). Erfinde keine URLs.
+
+REGEL 4 (Format): Beginne DIREKT mit der Executive Summary. Füge KEINE
+eigene Titelüberschrift (kein <h1>) hinzu - das übernimmt die aufrufende
+Anwendung bereits.
 
 KONTEXT (echt abgerufene Webseiten):
 {context}
 
 Erstelle einen strukturierten HTML-Report (nur <body>-Inhalt, kein
-Markdown) mit:
-1. Executive Summary (3-5 Sätze)
+Markdown, kein <h1>) mit:
+1. Executive Summary (3-5 vollständige Sätze)
 2. Pro Kategorie (nur wenn Meldungen vorhanden): Überschrift (h2),
-   darunter je Meldung: Überschrift (h3), 2-4 Sätze Zusammenfassung,
-   "Relevanz:" (1 Satz für DACH-Professionals), und
+   darunter je Meldung: Überschrift (h3), 2-4 vollständige Sätze
+   Zusammenfassung, "Relevanz:" (1 vollständiger Satz für
+   DACH-Professionals), und
    "Quelle: [Name] (Format) – <a href='URL'>URL</a>"
 Verwende einfaches HTML mit inline-Styles. Hintergrund weiß,
 Überschriften dunkelblau (#1a3a5c)."""
 
     return call_openrouter(prompt)
+
+
 
 
 # ---------------------------------------------------------------------------
