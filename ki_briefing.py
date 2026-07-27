@@ -341,9 +341,31 @@ Alle Angaben ohne Gewähr
 </body>
 </html>"""
 
-    service = get_gmail_service()
-    send_email(service, recipient, subject, full_html)
-    logger.info("Fertig.")
+    # Report IMMER als Datei speichern - unabhängig davon, ob der
+    # Mailversand danach klappt. So geht bei einem Versand-Fehler
+    # (z.B. fehlendes/falsches Secret) nicht der ganze Rechercheinhalt
+    # verloren.
+    output_dir = os.environ.get("OUTPUT_DIR", "output")
+    os.makedirs(output_dir, exist_ok=True)
+    safe_label = week_label.replace(" ", "_").replace("/", "-")
+    output_path = os.path.join(output_dir, f"KI-Briefing_{safe_label}.html")
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(full_html)
+    logger.info(f"Report gespeichert unter: {output_path}")
+
+    try:
+        service = get_gmail_service()
+        send_email(service, recipient, subject, full_html)
+        logger.info("Mail erfolgreich versendet.")
+    except Exception as exc:
+        logger.error(f"Mailversand fehlgeschlagen: {exc}")
+        logger.error(
+            "Der Report wurde trotzdem gespeichert (siehe oben) und steht "
+            "als Actions-Artifact zum Download bereit."
+        )
+        raise
+    finally:
+        logger.info("Fertig.")
 
 
 if __name__ == "__main__":
