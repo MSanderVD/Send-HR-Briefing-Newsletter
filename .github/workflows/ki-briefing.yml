@@ -19,7 +19,6 @@ jobs:
         run: pip install -r requirements.txt
       - name: KI-Briefing ausführen
         env:
-          GEMINI_API_KEY:         ${{ secrets.GEMINI_API_KEY }}
           GMAIL_CREDENTIALS_JSON: ${{ secrets.GMAIL_CREDENTIALS_JSON }}
           GMAIL_TOKEN_JSON:       ${{ secrets.GMAIL_TOKEN_JSON }}
           REPORT_RECIPIENT_EMAIL: ${{ secrets.REPORT_RECIPIENT_EMAIL }}
