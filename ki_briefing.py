@@ -169,22 +169,46 @@ def build_context_block(collected: dict) -> str:
 
 def looks_garbled(text: str) -> str | None:
     """Erkennt typische Ausfallmuster kleiner Modelle: Zeichen aus
-    unerwarteten Schriftsystemen (z.B. Thai, CJK) mitten im deutschen
-    Text, oder verdächtig viele sehr kurze 'Wort-Fragmente'. Gibt einen
-    Grund-String zurück wenn verdächtig, sonst None."""
+    unerwarteten Schriftsystemen mitten im deutschen Text. Deckt die
+    gängigsten nicht-lateinischen Schriftsysteme ab, statt nur einzelne
+    Sprachen - Kontamination kann von Lauf zu Lauf ein anderes Schrift-
+    system betreffen, je nachdem welches Fallback-Modell antwortet."""
     unexpected_scripts = re.findall(
-        r'[\u0E00-\u0E7F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]', text
+        r'[\u0E00-\u0E7F'    # Thai
+        r'\u4E00-\u9FFF'     # CJK (Chinesisch)
+        r'\u3040-\u30FF'     # Hiragana/Katakana (Japanisch)
+        r'\uAC00-\uD7AF'     # Hangul (Koreanisch)
+        r'\u0900-\u097F'     # Devanagari (Hindi)
+        r'\u0600-\u06FF'     # Arabisch
+        r'\u0590-\u05FF'     # Hebräisch
+        r'\u0400-\u04FF'     # Kyrillisch
+        r']', text
     )
     if unexpected_scripts:
         sample = "".join(unexpected_scripts[:5])
         return f"Unerwartete Schriftzeichen gefunden (z.B. '{sample}') - vermutlich korrupte Ausgabe"
 
-    # Auffällig viele abgeschnittene/verklebte Wörter (Heuristik, kein Beweis,
-    # aber ein zusätzliches Warnsignal in Kombination mit anderen Prüfungen)
     if len(text) < 500:
         return "Antwort verdächtig kurz für ein vollständiges Briefing"
 
     return None
+
+
+def validate_source_names(html: str, collected: dict) -> list[str]:
+    """Prüft, ob jede 'Quelle:'-Angabe im Report einen tatsächlich
+    konfigurierten Quellennamen enthält. Fängt Fälle ab, in denen das
+    Modell sich einen plausibel klingenden, aber erfundenen Quellennamen
+    ausdenkt (z.B. 'ChatUIView' statt eines echten Namens aus SOURCES)."""
+    known_names = {
+        e["name"] for entries in collected.values() for e in entries
+        if e["status"] == "ok"
+    }
+    suspicious = []
+    for match in re.finditer(r'Quelle:\s*([^<\n]{1,80})', html):
+        cited = match.group(1).strip()
+        if not any(name in cited for name in known_names):
+            suspicious.append(cited)
+    return suspicious
 
 
 def call_openrouter(prompt: str) -> str:
@@ -205,7 +229,11 @@ def call_openrouter(prompt: str) -> str:
     last_error = None
     for model in models:
         logger.info(f"Versuche Modell: {model}")
-        payload = {"model": model, "messages": [{"role": "user", "content": prompt}]}
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,  # niedriger = weniger zufällige Wort-/Sprach-Einschübe
+        }
         for attempt in range(2):
             resp = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
@@ -347,16 +375,29 @@ def run(week_label: str, subject: str):
 
     body_html = generate_briefing_html(collected, week_label)
     unknown_urls = validate_output_urls(body_html, collected)
+    suspicious_names = validate_source_names(body_html, collected)
+
+    warning_items = []
+    if unknown_urls:
+        warning_items.append(
+            "<strong>Unbekannte URLs</strong> (stammen nicht aus den abgerufenen "
+            f"Quellen): <ul>{''.join(f'<li>{u}</li>' for u in unknown_urls)}</ul>"
+        )
+    if suspicious_names:
+        warning_items.append(
+            "<strong>Verdächtige Quellenangaben</strong> (passen zu keinem "
+            f"konfigurierten Quellennamen): <ul>"
+            f"{''.join(f'<li>{n}</li>' for n in suspicious_names)}</ul>"
+        )
 
     warning_banner = ""
-    if unknown_urls:
-        items = "".join(f"<li>{u}</li>" for u in unknown_urls)
+    if warning_items:
         warning_banner = (
             "<div style='background:#fff3cd;border:1px solid #ffc107;"
             "padding:12px;margin-bottom:16px;'>"
-            "⚠️ Automatischer Grounding-Check: Folgende URLs im Report "
-            "stammen NICHT aus den abgerufenen Quellen und sollten manuell "
-            f"geprüft werden:<ul>{items}</ul></div>"
+            "⚠️ Automatischer Grounding-Check hat Auffälligkeiten gefunden - "
+            "bitte manuell prüfen, bevor der Report als verlässlich gilt:"
+            f"{''.join(warning_items)}</div>"
         )
 
     failed_sources_note = ""
