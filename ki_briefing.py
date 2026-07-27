@@ -194,19 +194,31 @@ def looks_garbled(text: str) -> str | None:
     return None
 
 
+def _normalize_for_comparison(s: str) -> str:
+    """Reduziert einen String auf Kleinbuchstaben+Ziffern, damit
+    typografische Varianten (z.B. U+2011 non-breaking hyphen statt '-',
+    unterschiedliche Groß-/Kleinschreibung oder Leerzeichen) beim
+    Vergleich nicht fälschlich als 'unbekannt' gelten."""
+    return re.sub(r'[^a-z0-9]', '', s.lower())
+
+
 def validate_source_names(html: str, collected: dict) -> list[str]:
     """Prüft, ob jede 'Quelle:'-Angabe im Report einen tatsächlich
     konfigurierten Quellennamen enthält. Fängt Fälle ab, in denen das
     Modell sich einen plausibel klingenden, aber erfundenen Quellennamen
-    ausdenkt (z.B. 'ChatUIView' statt eines echten Namens aus SOURCES)."""
-    known_names = {
-        e["name"] for entries in collected.values() for e in entries
+    ausdenkt (z.B. 'ChatUIView' statt eines echten Namens aus SOURCES).
+    Vergleicht normalisiert, damit z.B. ein typografischer Bindestrich
+    keinen Fehlalarm auslöst."""
+    known_names_normalized = {
+        _normalize_for_comparison(e["name"])
+        for entries in collected.values() for e in entries
         if e["status"] == "ok"
     }
     suspicious = []
     for match in re.finditer(r'Quelle:\s*([^<\n]{1,80})', html):
         cited = match.group(1).strip()
-        if not any(name in cited for name in known_names):
+        cited_normalized = _normalize_for_comparison(cited)
+        if not any(name in cited_normalized for name in known_names_normalized if name):
             suspicious.append(cited)
     return suspicious
 
