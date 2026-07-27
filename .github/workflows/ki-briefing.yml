@@ -24,3 +24,11 @@ jobs:
           REPORT_RECIPIENT_EMAIL: ${{ secrets.REPORT_RECIPIENT_EMAIL }}
           OPENROUTER_API_KEY:     ${{ secrets.OPENROUTER_API_KEY }}
         run: python ki_briefing.py --mode weekly
+
+      - name: Report als Artifact hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ki-briefing-report
+          path: output/*.html
+          if-no-files-found: warn
