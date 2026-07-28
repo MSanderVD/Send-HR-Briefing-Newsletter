@@ -223,6 +223,56 @@ def validate_source_names(html: str, collected: dict) -> list[str]:
     return suspicious
 
 
+def get_free_models(headers: dict) -> list[str]:
+    """Fragt den öffentlichen OpenRouter-Modellkatalog live ab und gibt
+    eine priorisierte Liste aktuell kostenloser Modell-IDs zurück.
+    Löst das Grundproblem, dass fest kodierte ':free'-Modell-IDs
+    innerhalb weniger Wochen ungültig werden (siehe Log vom 27.07.:
+    3 von 4 fest kodierten Modellen waren bereits 404).
+
+    Bevorzugt größere/etablierte Modellfamilien (bessere Textqualität,
+    weniger Sprachvermischung), erkennbar an bekannten Namensmustern -
+    fällt aber auf jedes verfügbare Gratis-Modell zurück, falls keines
+    davon passt."""
+    preferred_patterns = ["gpt-oss-120b", "qwen3", "nemotron", "llama-3.3-70b", "gemma", "gpt-oss-20b"]
+    fallback_static = [
+        "openai/gpt-oss-20b:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+    ]
+    try:
+        resp = requests.get(
+            "https://openrouter.ai/api/v1/models", headers=headers, timeout=30
+        )
+        resp.raise_for_status()
+        all_models = resp.json().get("data", [])
+    except requests.exceptions.RequestException as exc:
+        logger.warning(f"Konnte Modell-Katalog nicht abrufen ({exc}) - nutze statische Notliste.")
+        return fallback_static
+
+    free_models = [
+        m for m in all_models
+        if m.get("pricing", {}).get("prompt") == "0"
+        and m.get("pricing", {}).get("completion") == "0"
+        and m.get("id", "").endswith(":free")
+        and m.get("context_length", 0) >= 8000
+    ]
+    if not free_models:
+        logger.warning("Kein kostenloses Modell im Katalog gefunden - nutze statische Notliste.")
+        return fallback_static
+
+    def sort_key(m):
+        model_id = m["id"].lower()
+        for i, pattern in enumerate(preferred_patterns):
+            if pattern in model_id:
+                return (0, i)
+        return (1, -m.get("context_length", 0))  # unbekannte Modelle: größerer Kontext zuerst
+
+    free_models.sort(key=sort_key)
+    ids = [m["id"] for m in free_models][:6]
+    logger.info(f"Aktuell verfügbare kostenlose Modelle (Top 6): {ids}")
+    return ids
+
+
 def call_openrouter(prompt: str) -> str:
     api_key = os.environ["OPENROUTER_API_KEY"]
     headers = {
@@ -230,14 +280,7 @@ def call_openrouter(prompt: str) -> str:
         "Content-Type": "application/json",
         "HTTP-Referer": "https://github.com/",
     }
-    # Reihenfolge: erst die zuverlässigsten/größten kostenlosen Modelle,
-    # kleinere/anfälligere Modelle erst als letzter Ausweg.
-    models = [
-        "openai/gpt-oss-120b:free",
-        "google/gemini-2.0-flash-exp:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "openai/gpt-oss-20b:free",
-    ]
+    models = get_free_models(headers)
     last_error = None
     for model in models:
         logger.info(f"Versuche Modell: {model}")
