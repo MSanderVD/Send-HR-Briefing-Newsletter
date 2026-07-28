@@ -238,23 +238,40 @@ def _normalize_for_comparison(s: str) -> str:
     return re.sub(r'[^a-z0-9]', '', s.lower())
 
 
+def _significant_tokens(name: str) -> list[str]:
+    """Zerlegt einen Quellennamen in bedeutungstragende Wort-Tokens
+    (mind. 4 Zeichen, damit z.B. 'AI' oder 'EU' allein nicht zu
+    Fehltreffern führen). 'ChatGPT / OpenAI' -> ['chatgpt', 'openai']."""
+    tokens = re.split(r'[^a-z0-9]+', name.lower())
+    return [t for t in tokens if len(t) >= 4]
+
+
 def validate_source_names(html: str, collected: dict) -> list[str]:
-    """Prüft, ob jede 'Quelle:'-Angabe im Report einen tatsächlich
-    konfigurierten Quellennamen enthält. Fängt Fälle ab, in denen das
+    """Prüft, ob jede 'Quelle:'-Angabe im Report zu einem tatsächlich
+    konfigurierten Quellennamen passt. Fängt Fälle ab, in denen das
     Modell sich einen plausibel klingenden, aber erfundenen Quellennamen
     ausdenkt (z.B. 'ChatUIView' statt eines echten Namens aus SOURCES).
-    Vergleicht normalisiert, damit z.B. ein typografischer Bindestrich
-    keinen Fehlalarm auslöst."""
-    known_names_normalized = {
-        _normalize_for_comparison(e["name"])
+
+    Vergleicht auf Wort-Ebene statt auf Komplett-Namen-Ebene: Modelle
+    zitieren Quellen oft verkürzt (z.B. 'OpenAI (Release Notes)' statt
+    dem vollen konfigurierten Namen 'ChatGPT / OpenAI') - das ist
+    inhaltlich korrekt und darf keinen Fehlalarm auslösen. Ein Treffer
+    reicht: mindestens ein bedeutungstragendes Wort aus dem
+    konfigurierten Namen muss im Zitat vorkommen."""
+    known_tokens_per_name = [
+        _significant_tokens(e["name"])
         for entries in collected.values() for e in entries
         if e["status"] == "ok"
-    }
+    ]
     suspicious = []
     for match in re.finditer(r'Quelle:\s*([^<\n]{1,80})', html):
         cited = match.group(1).strip()
         cited_normalized = _normalize_for_comparison(cited)
-        if not any(name in cited_normalized for name in known_names_normalized if name):
+        found = any(
+            any(token in cited_normalized for token in tokens)
+            for tokens in known_tokens_per_name if tokens
+        )
+        if not found:
             suspicious.append(cited)
     return suspicious
 
