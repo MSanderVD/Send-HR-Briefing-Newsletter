@@ -230,11 +230,25 @@ def get_free_models(headers: dict) -> list[str]:
     innerhalb weniger Wochen ungültig werden (siehe Log vom 27.07.:
     3 von 4 fest kodierten Modellen waren bereits 404).
 
-    Bevorzugt größere/etablierte Modellfamilien (bessere Textqualität,
-    weniger Sprachvermischung), erkennbar an bekannten Namensmustern -
-    fällt aber auf jedes verfügbare Gratis-Modell zurück, falls keines
-    davon passt."""
+    Zwei Ausschlusskriterien (siehe Log vom 28.07.):
+    - Utility-/Klassifikationsmodelle (Safety, Guard, Moderation, Embed,
+      Rerank) sind keine Text-Generierungsmodelle und liefern keine
+      brauchbare Briefing-Ausgabe.
+    - Übergroße Modelle (>150 Mrd. Parameter laut Namenskonvention, z.B.
+      '...-550b-...') neigen bei kostenlosen Endpunkten zu Timeouts von
+      mehreren Minuten (beobachtet: nemotron-3-ultra-550b -> 524 nach
+      ~5 Minuten). Werden deshalb komplett ausgeschlossen statt nur
+      nachrangig behandelt.
+
+    Bevorzugt darüber hinaus größere/etablierte Modellfamilien (bessere
+    Textqualität, weniger Sprachvermischung), erkennbar an bekannten
+    Namensmustern - fällt aber auf jedes verfügbare Gratis-Modell
+    zurück, falls keines davon passt."""
     preferred_patterns = ["gpt-oss-120b", "qwen3", "nemotron", "llama-3.3-70b", "gemma", "gpt-oss-20b"]
+    exclude_keywords = [
+        "safety", "guard", "moderation", "embed", "rerank", "judge",
+        "asr", "tts", "ocr",
+    ]
     fallback_static = [
         "openai/gpt-oss-20b:free",
         "meta-llama/llama-3.3-70b-instruct:free",
@@ -249,15 +263,25 @@ def get_free_models(headers: dict) -> list[str]:
         logger.warning(f"Konnte Modell-Katalog nicht abrufen ({exc}) - nutze statische Notliste.")
         return fallback_static
 
+    def estimated_param_billions(model_id: str) -> float:
+        """Extrahiert die größte '<Zahl>b'-Angabe aus der Modell-ID als
+        grobe Schätzung der Parameterzahl (z.B. 'nemotron-3-ultra-550b-a55b'
+        -> 550). Liefert 0, wenn keine Zahl gefunden wird (dann nicht
+        ausgeschlossen, da unbekannt != riesig)."""
+        matches = re.findall(r'(\d+(?:\.\d+)?)b(?![a-z])', model_id.lower())
+        return max((float(n) for n in matches), default=0.0)
+
     free_models = [
         m for m in all_models
         if m.get("pricing", {}).get("prompt") == "0"
         and m.get("pricing", {}).get("completion") == "0"
         and m.get("id", "").endswith(":free")
         and m.get("context_length", 0) >= 8000
+        and not any(kw in m.get("id", "").lower() for kw in exclude_keywords)
+        and estimated_param_billions(m.get("id", "")) <= 150
     ]
     if not free_models:
-        logger.warning("Kein kostenloses Modell im Katalog gefunden - nutze statische Notliste.")
+        logger.warning("Kein passendes kostenloses Modell im Katalog gefunden - nutze statische Notliste.")
         return fallback_static
 
     def sort_key(m):
@@ -290,10 +314,15 @@ def call_openrouter(prompt: str) -> str:
             "temperature": 0.2,  # niedriger = weniger zufällige Wort-/Sprach-Einschübe
         }
         for attempt in range(2):
-            resp = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers=headers, json=payload, timeout=180,
-            )
+            try:
+                resp = requests.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers, json=payload, timeout=90,
+                )
+            except requests.exceptions.RequestException as exc:
+                last_error = f"{model}: Verbindungsfehler/Timeout - {exc}"
+                logger.warning(last_error)
+                break  # nächstes Modell versuchen, statt abzustürzen
             if resp.status_code == 429:
                 wait = 30 * (attempt + 1)
                 logger.info(f"429 bei {model} - warte {wait}s")
