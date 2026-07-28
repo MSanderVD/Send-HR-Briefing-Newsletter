@@ -426,13 +426,19 @@ def call_openrouter(prompt: str) -> str:
                 logger.warning(f"Modell {model} fehlgeschlagen: {last_error}")
                 break
             resp.raise_for_status()
-            data = resp.json()
-            if "choices" not in data:
-                last_error = f"{model}: unerwartete Antwortstruktur - {json.dumps(data)[:300]}"
+            try:
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+            except (json.JSONDecodeError, requests.exceptions.JSONDecodeError,
+                     KeyError, IndexError, TypeError) as exc:
+                last_error = (
+                    f"{model}: Antwort nicht auswertbar ({type(exc).__name__}: {exc}) - "
+                    f"vermutlich abgeschnittene/kaputte JSON-Antwort. "
+                    f"Rohtext-Anfang: {resp.text[:200]!r}"
+                )
                 logger.warning(last_error)
-                break
+                break  # nächstes Modell versuchen, statt abzustürzen
 
-            content = data["choices"][0]["message"]["content"]
             garbled_reason = looks_garbled(content)
             if garbled_reason:
                 last_error = f"{model}: Ausgabe verworfen - {garbled_reason}"
