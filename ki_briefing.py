@@ -168,11 +168,12 @@ def build_context_block(collected: dict) -> str:
 
 
 def looks_garbled(text: str) -> str | None:
-    """Erkennt typische Ausfallmuster kleiner Modelle: Zeichen aus
-    unerwarteten Schriftsystemen mitten im deutschen Text. Deckt die
-    gängigsten nicht-lateinischen Schriftsysteme ab, statt nur einzelne
-    Sprachen - Kontamination kann von Lauf zu Lauf ein anderes Schrift-
-    system betreffen, je nachdem welches Fallback-Modell antwortet."""
+    """Erkennt typische Ausfallmuster kleiner/schlecht geeigneter Modelle.
+    Deckt mehrere unabhängige Fehlerklassen ab, die in der Praxis
+    beobachtet wurden - jede für sich reicht, um die Ausgabe zu verwerfen
+    und stattdessen das nächste Modell zu versuchen."""
+
+    # 1) Fremde Schriftsysteme mitten im deutschen Text
     unexpected_scripts = re.findall(
         r'[\u0E00-\u0E7F'    # Thai
         r'\u4E00-\u9FFF'     # CJK (Chinesisch)
@@ -187,6 +188,30 @@ def looks_garbled(text: str) -> str | None:
     if unexpected_scripts:
         sample = "".join(unexpected_scripts[:5])
         return f"Unerwartete Schriftzeichen gefunden (z.B. '{sample}') - vermutlich korrupte Ausgabe"
+
+    # 2) Durchgesickerte interne Platzhalter-/Steuer-Token, z.B. <TASKBODY>,
+    #    <THINK>, <ANSWER> - kommen von manchen 'reasoning'-Modellen, die
+    #    ein eigenes Prompt-Template erwarten und dessen Marker versehentlich
+    #    mit ausgeben, wenn das erwartete Format fehlt.
+    leaked_tokens = re.findall(r'<\s*[A-Z_]{3,}\s*>', text)
+    if leaked_tokens:
+        return f"Durchgesickerte Platzhalter-Token gefunden ({leaked_tokens[:3]}) - Modell hat eigenes Prompt-Format nicht sauber ausgefüllt"
+
+    # 3) Grobe Sprach-Prüfung: erwarten deutschen Text, keine Übersetzung
+    #    ins Englische. Zählt häufige deutsche Funktionswörter; bei einem
+    #    Text dieser Länge müssen mehrere davon vorkommen.
+    german_markers = [" der ", " die ", " das ", " und ", " für ", " mit ", " ist ", " im "]
+    marker_count = sum(text.count(m) for m in german_markers)
+    if len(text) > 300 and marker_count < 3:
+        return "Zu wenige deutsche Funktionswörter gefunden - Ausgabe vermutlich nicht auf Deutsch"
+
+    # 4) Struktur-Check: erwartete Bausteine (Quellenangaben, Kategorien)
+    #    müssen mindestens einmal vorkommen - sonst wurde das angeforderte
+    #    Format schlicht ignoriert (z.B. nur Fließtext ohne Meldungen).
+    if "Quelle:" not in text and "Quelle :" not in text:
+        return "Kein einziges 'Quelle:' im Text gefunden - Format-Vorgabe wurde nicht befolgt"
+    if "<h2" not in text.lower() and "<h3" not in text.lower():
+        return "Keine Kategorie-/Meldungs-Überschriften (h2/h3) gefunden - Struktur fehlt komplett"
 
     if len(text) < 500:
         return "Antwort verdächtig kurz für ein vollständiges Briefing"
@@ -286,6 +311,11 @@ def get_free_models(headers: dict) -> list[str]:
 
     def sort_key(m):
         model_id = m["id"].lower()
+        # 'reasoning'-Varianten erwarten oft ein eigenes Prompt-Template
+        # und neigen zu durchgesickerten Platzhaltern (siehe looks_garbled) -
+        # deshalb grundsätzlich zuletzt versuchen, unabhängig von der Familie.
+        if "reasoning" in model_id:
+            return (2, 0)
         for i, pattern in enumerate(preferred_patterns):
             if pattern in model_id:
                 return (0, i)
