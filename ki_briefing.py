@@ -30,10 +30,13 @@ import base64
 import logging
 import argparse
 import datetime
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 import requests
+import langdetect
+langdetect.DetectorFactory.seed = 0  # deterministische Ergebnisse statt zufälliger Schwankungen
 from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -197,13 +200,21 @@ def looks_garbled(text: str) -> str | None:
     if leaked_tokens:
         return f"Durchgesickerte Platzhalter-Token gefunden ({leaked_tokens[:3]}) - Modell hat eigenes Prompt-Format nicht sauber ausgefüllt"
 
-    # 3) Grobe Sprach-Prüfung: erwarten deutschen Text, keine Übersetzung
-    #    ins Englische. Zählt häufige deutsche Funktionswörter; bei einem
-    #    Text dieser Länge müssen mehrere davon vorkommen.
-    german_markers = [" der ", " die ", " das ", " und ", " für ", " mit ", " ist ", " im "]
-    marker_count = sum(text.count(m) for m in german_markers)
-    if len(text) > 300 and marker_count < 3:
-        return "Zu wenige deutsche Funktionswörter gefunden - Ausgabe vermutlich nicht auf Deutsch"
+    # 3) Echte Sprach-Prüfung: erwarten deutschen Text. Vorherige Version
+    #    zählte nur ein paar deutsche Wörter (Schwelle zu niedrig - ein
+    #    englischer Text mit vereinzelten deutschen Begriffen wie
+    #    "Quelle:"/"Relevanz:" kam trotzdem durch). Reiner Text ohne
+    #    HTML-Tags wird analysiert, damit Tag-Namen die Erkennung nicht
+    #    verfälschen.
+    plain_text = re.sub(r'<[^>]+>', ' ', text)
+    plain_text = re.sub(r'\s+', ' ', plain_text).strip()
+    if len(plain_text) > 200:
+        try:
+            detected = langdetect.detect(plain_text)
+            if detected != "de":
+                return f"Spracherkennung meldet '{detected}' statt 'de' - Ausgabe vermutlich nicht auf Deutsch"
+        except langdetect.lang_detect_exception.LangDetectException:
+            return "Sprache konnte nicht erkannt werden (evtl. zu wenig zusammenhängender Text)"
 
     # 4) Struktur-Check: erwartete Bausteine (Quellenangaben, Kategorien)
     #    müssen mindestens einmal vorkommen - sonst wurde das angeforderte
@@ -327,6 +338,41 @@ def get_free_models(headers: dict) -> list[str]:
     return ids
 
 
+def _post_with_hard_timeout(url: str, headers: dict, payload: dict, hard_timeout: int = 360):
+    """Erzwingt ein echtes Wanduhr-Timeout. requests' eigener 'timeout'-
+    Parameter greift nur, wenn zwischen zwei empfangenen Datenpaketen zu
+    lange nichts kommt - manche Gratis-Modelle senden aber gerade genug
+    Keep-Alive-Daten, um das zu umgehen (beobachtet: >6 Minuten trotz
+    timeout=90). Nutzt bewusst einen Daemon-Thread statt
+    ThreadPoolExecutor: Ein Executor würde beim Aufräumen (__exit__)
+    trotzdem auf den langsamen Thread warten und damit den Timeout
+    wirkungslos machen. Der Daemon-Thread läuft im Hintergrund einfach
+    weiter (verworfen), sobald wir aufgeben - ohne den Hauptablauf
+    aufzuhalten."""
+    result: dict = {}
+
+    def worker():
+        try:
+            result["resp"] = requests.post(
+                url, headers=headers, json=payload, timeout=hard_timeout + 15
+            )
+        except Exception as exc:  # wird im Hauptthread erneut ausgewertet
+            result["error"] = exc
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    thread.join(timeout=hard_timeout)
+
+    if thread.is_alive():
+        raise requests.exceptions.Timeout(
+            f"Hartes Timeout nach {hard_timeout}s erzwungen - Server hat nicht "
+            "rechtzeitig fertig geantwortet (unabhängig vom Verbindungsstatus)"
+        )
+    if "error" in result:
+        raise result["error"]
+    return result["resp"]
+
+
 def call_openrouter(prompt: str) -> str:
     api_key = os.environ["OPENROUTER_API_KEY"]
     headers = {
@@ -345,9 +391,9 @@ def call_openrouter(prompt: str) -> str:
         }
         for attempt in range(2):
             try:
-                resp = requests.post(
+                resp = _post_with_hard_timeout(
                     "https://openrouter.ai/api/v1/chat/completions",
-                    headers=headers, json=payload, timeout=90,
+                    headers, payload, hard_timeout=360,
                 )
             except requests.exceptions.RequestException as exc:
                 last_error = f"{model}: Verbindungsfehler/Timeout - {exc}"
