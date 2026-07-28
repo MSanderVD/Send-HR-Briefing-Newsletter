@@ -200,19 +200,43 @@ def looks_garbled(text: str) -> str | None:
     if leaked_tokens:
         return f"Durchgesickerte Platzhalter-Token gefunden ({leaked_tokens[:3]}) - Modell hat eigenes Prompt-Format nicht sauber ausgefüllt"
 
-    # 3) Echte Sprach-Prüfung: erwarten deutschen Text. Vorherige Version
-    #    zählte nur ein paar deutsche Wörter (Schwelle zu niedrig - ein
-    #    englischer Text mit vereinzelten deutschen Begriffen wie
-    #    "Quelle:"/"Relevanz:" kam trotzdem durch). Reiner Text ohne
-    #    HTML-Tags wird analysiert, damit Tag-Namen die Erkennung nicht
-    #    verfälschen.
+    # 3) Echte Sprach-Prüfung: erwarten deutschen Text. Frühere Version
+    #    prüfte das GESAMTE Dokument als einen Block - das übersieht
+    #    gemischtsprachige Ausgaben, bei denen z.B. Executive Summary und
+    #    'Relevanz:'-Sätze deutsch sind, die eigentlichen Meldungstexte
+    #    aber englisch (beobachtet: Gesamtdokument kippt dann trotzdem
+    #    auf 'de', weil genug deutsche Füllsätze vorhanden sind). Deshalb
+    #    jetzt satzweise: jeder ausreichend lange Satz wird einzeln
+    #    geprüft, ein Anteil nicht-deutscher Sätze über der Schwelle
+    #    gilt als gemischtsprachig und wird verworfen.
     plain_text = re.sub(r'<[^>]+>', ' ', text)
     plain_text = re.sub(r'\s+', ' ', plain_text).strip()
-    if len(plain_text) > 200:
+    sentences = re.split(r'(?<=[.!?])\s+', plain_text)
+    substantial_sentences = [s for s in sentences if len(s) >= 40]
+
+    if len(substantial_sentences) >= 4:
+        non_german_count = 0
+        checked_count = 0
+        for sentence in substantial_sentences:
+            try:
+                if langdetect.detect(sentence) != "de":
+                    non_german_count += 1
+                checked_count += 1
+            except langdetect.lang_detect_exception.LangDetectException:
+                continue  # zu kurz/uneindeutig - zählt weder für noch gegen
+
+        if checked_count >= 4 and (non_german_count / checked_count) > 0.15:
+            return (
+                f"{non_german_count} von {checked_count} geprüften Sätzen nicht auf "
+                "Deutsch erkannt - vermutlich gemischtsprachige Ausgabe "
+                "(z.B. Meldungstexte englisch, nur Rahmensätze deutsch)"
+            )
+    elif len(plain_text) > 200:
+        # Zu wenige einzeln prüfbare Sätze (z.B. sehr kurzer Report) -
+        # Rückfall auf Gesamtdokument-Prüfung als besser als nichts.
         try:
-            detected = langdetect.detect(plain_text)
-            if detected != "de":
-                return f"Spracherkennung meldet '{detected}' statt 'de' - Ausgabe vermutlich nicht auf Deutsch"
+            if langdetect.detect(plain_text) != "de":
+                return "Spracherkennung meldet nicht 'de' für das Gesamtdokument"
         except langdetect.lang_detect_exception.LangDetectException:
             return "Sprache konnte nicht erkannt werden (evtl. zu wenig zusammenhängender Text)"
 
