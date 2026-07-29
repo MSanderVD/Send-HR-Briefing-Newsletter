@@ -1,13 +1,13 @@
-name: KI-Briefing
+name: HR-Briefing
 
 on:
   schedule:
-    - cron: "0 6 * * 3"   # jeden Mittwoch 06:00 UTC
+    - cron: "0 6 * * 1"   # jeden Montag 06:00 UTC
 
   workflow_dispatch: {}
 
 jobs:
-  ki-briefing:
+  hr-briefing:
     name: Wochenbriefing
     runs-on: ubuntu-latest
     steps:
@@ -17,18 +17,20 @@ jobs:
           python-version: "3.11"
       - name: Abhängigkeiten installieren
         run: pip install -r requirements.txt
-      - name: KI-Briefing ausführen
+      - name: HR-Briefing ausführen
         env:
-          GMAIL_CREDENTIALS_JSON: ${{ secrets.GMAIL_CREDENTIALS_JSON }}
-          GMAIL_TOKEN_JSON:       ${{ secrets.GMAIL_TOKEN_JSON }}
+          GRAPH_TENANT_ID:        ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID:        ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET:    ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_SENDER_UPN:       ${{ secrets.GRAPH_SENDER_UPN }}
           REPORT_RECIPIENT_EMAIL: ${{ secrets.REPORT_RECIPIENT_EMAIL }}
           OPENROUTER_API_KEY:     ${{ secrets.OPENROUTER_API_KEY }}
-        run: python ki_briefing.py --mode weekly
+        run: python hr_briefing.py --mode weekly
 
       - name: Report als Artifact hochladen
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ki-briefing-report
+          name: hr-briefing-report
           path: output/*.html
           if-no-files-found: warn
