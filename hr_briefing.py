@@ -375,6 +375,32 @@ def looks_garbled(text: str) -> str | None:
     if leaked_tokens:
         return f"Durchgesickerte Platzhalter-Token gefunden ({leaked_tokens[:3]}) - Modell hat eigenes Prompt-Format nicht sauber ausgefüllt"
 
+    # 2b) Liegengebliebene eckige Klammern im sichtbaren Text - meist ein
+    # Zeichen dafür, dass eine Platzhalter-/Optional-Markierung aus der
+    # Vorlage (z.B. "[Aktenzeichen]" oder "[... falls vorhanden]") wörtlich
+    # übernommen statt ausgefüllt/entfernt wurde. Eckige Klammern kommen in
+    # deutschen Rechtstexten praktisch nie im Fließtext vor, daher niedriges
+    # Fehlalarm-Risiko.
+    plain_for_brackets = re.sub(r'<[^>]+>', ' ', text)
+    if re.search(r'[\[\]]', plain_for_brackets):
+        return "Eckige Klammern im Fließtext gefunden - vermutlich ein nicht ersetzter Platzhalter aus der Vorlage"
+
+    # 2c) Kaputte HTML-Tags: doppeltes/verschachteltes style- oder
+    # href-Attribut innerhalb eines einzelnen Tags (z.B. Modell hat beim
+    # Kopieren des Templates ein Attribut versehentlich dupliziert).
+    for tag_match in re.finditer(r'<[a-zA-Z]+\s[^>]*>', text):
+        tag_content = tag_match.group(0)
+        if tag_content.count('style="') > 1 or tag_content.count('href="') > 1:
+            return f"Kaputtes HTML-Tag mit doppeltem Attribut gefunden: {tag_content[:100]!r}"
+
+    # 2d) Durchgesickerte Markup-Bruchstücke IM sichtbaren Text (nicht in
+    # einem Tag) - z.B. 'Urteile;">Urteile' in einer Tabellenzelle. Nach
+    # Entfernen aller echten Tags dürfen keine Reste wie 'style="' oder
+    # ein einsames '">' mehr übrig sein - normaler deutscher Fließtext
+    # enthält diese Zeichenfolgen praktisch nie.
+    if 'style="' in plain_for_brackets or re.search(r'"\s*>', plain_for_brackets):
+        return "Durchgesickerte HTML-Markup-Reste im sichtbaren Text gefunden - vermutlich kaputte Tag-Struktur"
+
     # 3) Echte Sprach-Prüfung, satzweise statt dokumentweise (siehe Lesson
     #    Learned #8 - vermeidet, dass gemischtsprachige Ausgaben durchrutschen)
     plain_text = re.sub(r'<[^>]+>', ' ', text)
@@ -751,7 +777,11 @@ ersetzen; Struktur, Tags und Inline-Styles unverändert lassen):
     <li>[konkrete HR/Payroll-Relevanz]</li>
     <li>[konkreter Handlungsbedarf/Prüfpunkt]</li>
   </ul>
-  <p style="margin: 0; font-size: 13px; color: #5a6b80;">📎 Quelle: <a href="[exakte URL aus dem Kontext]" style="color: {cat_color};">[Institution/Gericht]</a>[ &middot; Az. [Aktenzeichen] falls vorhanden]</p>
+  <p style="margin: 0; font-size: 13px; color: #5a6b80;">📎 Quelle: <a href="[exakte URL aus dem Kontext]" style="color: {cat_color};">[Institution/Gericht]</a></p>
+  <!-- NUR falls im Kontext ein Aktenzeichen genannt ist: direkt nach dem
+       </a>-Tag ergänzen: " &middot; Az. [Aktenzeichen ohne Klammern]" -
+       sonst diesen Zusatz KOMPLETT weglassen, keine eckigen Klammern im
+       fertigen Text stehen lassen. -->
 </div>
 <!-- Falls keine belastbare Meldung für diese Kategorie im Kontext steht: -->
 <p style="margin: 0 0 28px; color: #777; font-style: italic;">Keine belastbare neue Entwicklung im Recherchezeitraum gefunden.</p>
@@ -798,6 +828,12 @@ Meldung weglassen.
 
 REGEL 3 (Quellen): Für JEDE Meldung die exakte Quell-URL aus dem Kontext
 angeben (unverändert kopieren, keine Tippfehler, keine erfundenen URLs).
+Falls im Kontext ein Aktenzeichen genannt ist, ergänze direkt nach dem
+Quellenlink " &middot; Az. XXX" (XXX = das echte Aktenzeichen, OHNE
+eckige Klammern). Ist kein Aktenzeichen im Kontext vorhanden, lass
+diesen Zusatz KOMPLETT weg - schreibe niemals eckige Klammern wie "[...]"
+in den fertigen Text, das sind nur Platzhalter-Markierungen in dieser
+Anleitung, keine auszugebenden Zeichen.
 
 REGEL 4 (Auswahl): Wähle insgesamt 8-15 relevante Meldungen über alle
 Kategorien hinweg. Auswahlkriterien: Aktualität, konkrete Relevanz für
