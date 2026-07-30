@@ -547,9 +547,9 @@ ersetzen; Struktur, Tags und Inline-Styles unverändert lassen):
          style="background:#ffffff" und style="background:#f7f9fc" -->
     <tr style="background: #ffffff;">
       <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[Bereich]</td>
-      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[Thema]</td>
-      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[Hoch/Mittel/Niedrig]</td>
-      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[Konkreter Handlungsbedarf]</td>
+      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[Thema - kurzer Titel, kein ganzer Satz]</td>
+      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[NUR EINES: Hoch, Mittel oder Niedrig]</td>
+      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[kurze eigene Handlungsempfehlung, max. 12 Woerter]</td>
     </tr>
   </tbody>
 </table>
@@ -626,6 +626,19 @@ Formulierungen, keine Emoji-Inflation, kein Hinweis auf einen Anhang.
 REGEL 6 (Format-Grenzen): Gib NUR den Inhalt zwischen (exklusive) den
 <body>-Tags zurück - kein <!DOCTYPE>, kein <html>, kein <head>, kein
 <body>-Tag selbst, kein Markdown, keine Code-Fences.
+
+REGEL 7 (Kurzüberblick-Tabelle, strikt): In der Tabelle steht in der
+Spalte "Relevanz" AUSSCHLIESSLICH eines der drei Wörter "Hoch", "Mittel"
+oder "Niedrig" - NIE ein Satz, NIE ein Textausschnitt. "Handlungsbedarf"
+ist eine KURZE, eigene Formulierung (max. 12 Wörter), was HR konkret tun
+sollte - KEIN kopierter/paraphrasierter Satz aus dem Fließtext.
+Falsch (NICHT so machen): <td>Bei den Frauenanteilen in Aufsichtsräten
+und Vorständen zeichnet sich eine besorgniserregende Entwicklung ab.</td>
+Richtig: <td>Mittel</td> bzw. <td>Diversity-Kennzahlen im nächsten
+Reporting-Zyklus gegenprüfen</td>. Wenn du unsicher bist, ob eine Meldung
+"Hoch", "Mittel" oder "Niedrig" ist: nutze die Praxisrelevanz für
+HR/Payroll als Maßstab (Hoch = unmittelbarer Handlungsbedarf/Frist,
+Mittel = mittelfristig relevant, Niedrig = nur zur Information).
 
 Kategorien und Styling (in dieser Reihenfolge, jede Kategorie als
 eigener H2-Block mit dem jeweiligen Icon und der jeweiligen Rahmen-/
