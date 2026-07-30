@@ -100,7 +100,7 @@ SOURCES = {
     "HR-Digitalisierung": [
         ("Haufe – Personal", "https://www.haufe.de/personal/",
          "Fachmedium", "News-Übersicht HR/Personalwesen"),
-        ("LTO – Arbeitsrecht", "https://www.lto.de/recht/hintergruende/arbeitsrecht/",
+        ("LTO – Arbeitsrecht", "https://www.lto.de/rechtsgebiete/arbeitsrecht-urteile-gesetzesaenderungen-nachrichten",
          "Fachmedium", "Nachrichten-Hub Arbeitsrecht"),
     ],
 }
