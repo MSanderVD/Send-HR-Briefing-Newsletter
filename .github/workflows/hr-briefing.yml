@@ -25,6 +25,8 @@ jobs:
           GRAPH_SENDER_UPN:       ${{ secrets.GRAPH_SENDER_UPN }}
           REPORT_RECIPIENT_EMAIL: ${{ secrets.REPORT_RECIPIENT_EMAIL }}
           OPENROUTER_API_KEY:     ${{ secrets.OPENROUTER_API_KEY }}
+          GMAIL_CREDENTIALS_JSON: ${{ secrets.GMAIL_CREDENTIALS_JSON }}
+          GMAIL_TOKEN_JSON:       ${{ secrets.GMAIL_TOKEN_JSON }}
         run: python hr_briefing.py --mode weekly
 
       - name: Report als Artifact hochladen
