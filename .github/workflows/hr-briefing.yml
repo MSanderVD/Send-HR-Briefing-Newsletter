@@ -1,0 +1,36 @@
+name: HR-Briefing
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # jeden Montag 06:00 UTC
+
+  workflow_dispatch: {}
+
+jobs:
+  hr-briefing:
+    name: Wochenbriefing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Abhängigkeiten installieren
+        run: pip install -r requirements.txt
+      - name: HR-Briefing ausführen
+        env:
+          GRAPH_TENANT_ID:        ${{ secrets.GRAPH_TENANT_ID }}
+          GRAPH_CLIENT_ID:        ${{ secrets.GRAPH_CLIENT_ID }}
+          GRAPH_CLIENT_SECRET:    ${{ secrets.GRAPH_CLIENT_SECRET }}
+          GRAPH_SENDER_UPN:       ${{ secrets.GRAPH_SENDER_UPN }}
+          REPORT_RECIPIENT_EMAIL: ${{ secrets.REPORT_RECIPIENT_EMAIL }}
+          OPENROUTER_API_KEY:     ${{ secrets.OPENROUTER_API_KEY }}
+        run: python hr_briefing.py --mode weekly
+
+      - name: Report als Artifact hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hr-briefing-report
+          path: output/*.html
+          if-no-files-found: warn
