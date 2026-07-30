@@ -31,6 +31,7 @@ import os
 import re
 import json
 import time
+import base64
 import logging
 import argparse
 import datetime
@@ -40,6 +41,8 @@ import requests
 import langdetect
 langdetect.DetectorFactory.seed = 0  # deterministische Ergebnisse statt zufälliger Schwankungen
 from bs4 import BeautifulSoup
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 
 import mail_graph
 
@@ -182,6 +185,146 @@ def collect_all_sources() -> dict:
             logger.info(f"[{category}] {name}: {status_note}")
             collected[category].append(entry)
     return collected
+
+
+# ---------------------------------------------------------------------------
+# Zusätzliche Quelle: HR-relevante Newsletter aus Gmail
+# ---------------------------------------------------------------------------
+# Ergänzt die Behörden-/Fachmedien-Quellen um tatsächlich empfangene
+# Newsletter-Emails aus dem bestehenden Newsletter-Analyse-Postfach
+# (vdnewsletteranalyse@gmail.com), gefiltert auf HR-Relevanz per
+# Keyword-Vorfilter (spart LLM-Kosten - nicht jede Mail muss teuer
+# klassifiziert werden). Die gefundenen Mails durchlaufen danach
+# DENSELBEN Grounding-Prozess wie alle anderen Quellen (Anti-
+# Halluzinations-Regeln, URL-/Namens-Validierung) - anders als im
+# einfacheren Newsletter-Analyse-Repo, das ungeprüft direkt ans LLM geht.
+#
+# Scheitert dieser Schritt komplett (z.B. Gmail-Auth-Problem), ist das
+# NICHT fatal - das Briefing läuft dann einfach ohne die Newsletter-
+# Ergänzung weiter (lieber weniger Quellen als ein komplett
+# fehlschlagendes Briefing).
+
+NEWSLETTER_DAYS_BACK = 7
+
+HR_KEYWORDS = [
+    "arbeitsrecht", "lohnsteuer", "sozialversicherung", "human resources",
+    "payroll", "gehaltsabrechnung", "kündigung", "arbeitsvertrag",
+    "mitarbeiter", "personalwesen", "personalabteilung",
+    "bundesarbeitsgericht", "bundesfinanzhof", "bundessozialgericht",
+    "bmas", "bundestag", "bundesrat", "gesetzentwurf", "referentenentwurf",
+    "verordnung", "urteil", "rechtsprechung", "elternzeit",
+    "urlaubsanspruch", "aufstiegsfortbildung", "a1-bescheinigung",
+    "entgeltabrechnung", "arbeitszeugnis", "abmahnung", "betriebsrat",
+    "diskriminierung", "agg", "homeoffice", "mobiles arbeiten",
+    "weiterbildung", "recruiting", "onboarding", "hr-digitalisierung",
+    "betriebsprüfung", "sozialversicherungsbeitrag",
+]
+
+
+def _extract_email_body(payload: dict) -> str:
+    """Extrahiert den Klartext-Body einer Gmail-Nachricht (rekursiv für
+    Multipart-Mails). Identisch zur Logik im Newsletter-Analyse-Repo."""
+    if "parts" in payload:
+        for part in payload["parts"]:
+            if part["mimeType"] == "text/plain":
+                data = part["body"].get("data", "")
+                if data:
+                    return base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="ignore")
+        for part in payload["parts"]:
+            nested = _extract_email_body(part)
+            if nested:
+                return nested
+        return ""
+    data = payload.get("body", {}).get("data", "")
+    if data:
+        return base64.urlsafe_b64decode(data + "==").decode("utf-8", errors="ignore")
+    return ""
+
+
+def _get_gmail_readonly_service():
+    """Separater, LESENDER Gmail-Zugriff (gmail.readonly) auf das
+    Newsletter-Postfach - unabhängig vom Mailversand, der über Microsoft
+    Graph läuft (siehe mail_graph.py). Nutzt dieselben Secrets/dasselbe
+    Konto wie das bestehende Newsletter-Analyse-Repo."""
+    creds_data = json.loads(os.environ["GMAIL_TOKEN_JSON"])
+    client_info = json.loads(os.environ["GMAIL_CREDENTIALS_JSON"])["installed"]
+    creds = Credentials(
+        token=creds_data.get("token"),
+        refresh_token=creds_data.get("refresh_token"),
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=client_info["client_id"],
+        client_secret=client_info["client_secret"],
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+    )
+    return build("gmail", "v1", credentials=creds)
+
+
+def fetch_hr_newsletter_sources(days_back: int = NEWSLETTER_DAYS_BACK) -> list[dict]:
+    """Liest die letzten Newsletter-Emails, filtert per Keyword-Vorfilter
+    auf HR-Relevanz und gibt sie im selben Format wie die übrigen
+    Quellen zurück (name/url/format/access_hint/status/text), damit sie
+    denselben Grounding-Checks unterliegen wie alle anderen Quellen.
+    Jede zurückgegebene Quelle bekommt einen echten Gmail-Deeplink als
+    URL (funktioniert beim Öffnen im selben Konto)."""
+    try:
+        service = _get_gmail_readonly_service()
+    except Exception as exc:
+        logger.warning(f"Newsletter-Postfach nicht erreichbar (Auth-Problem?): {exc}")
+        return []
+
+    since = (datetime.datetime.utcnow() - datetime.timedelta(days=days_back)).strftime("%Y/%m/%d")
+    try:
+        result = service.users().messages().list(
+            userId="me", q=f"after:{since}", maxResults=200
+        ).execute()
+    except Exception as exc:
+        logger.warning(f"Newsletter-Postfach: Abruf der Nachrichtenliste fehlgeschlagen: {exc}")
+        return []
+
+    message_refs = result.get("messages", [])
+    logger.info(f"Newsletter-Postfach: {len(message_refs)} Email(s) der letzten {days_back} Tage gefunden.")
+
+    sources = []
+    for ref in message_refs:
+        try:
+            msg = service.users().messages().get(
+                userId="me", id=ref["id"], format="full"
+            ).execute()
+        except Exception:
+            continue  # einzelne Mail nicht lesbar - einfach überspringen
+
+        subject = sender = ""
+        for h in msg["payload"].get("headers", []):
+            if h["name"] == "Subject":
+                subject = h["value"]
+            if h["name"] == "From":
+                sender = h["value"]
+
+        body = _extract_email_body(msg["payload"])
+        haystack = f"{subject} {body[:1500]}".lower()
+
+        if not any(kw in haystack for kw in HR_KEYWORDS):
+            continue  # kein HR-Bezug erkennbar - Vorfilter spart LLM-Kosten
+
+        gmail_link = f"https://mail.google.com/mail/u/0/#inbox/{msg['id']}"
+        sources.append({
+            "name": f"Newsletter: {sender[:60]}",
+            "url": gmail_link,
+            "format": "Newsletter-Email",
+            "access_hint": f"Betreff: {subject[:100]}",
+            "status": "ok",
+            "text": f"Betreff: {subject}\n\n{body[:3000]}",
+            "http_status": 200,
+            "title": subject,
+            "error": None,
+            "fetched_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        })
+
+    logger.info(
+        f"Newsletter-Postfach: {len(sources)} von {len(message_refs)} "
+        "Email(s) als HR-relevant eingestuft."
+    )
+    return sources
 
 
 # ---------------------------------------------------------------------------
@@ -339,6 +482,40 @@ def validate_source_names(html: str, collected: dict) -> list[str]:
     return suspicious
 
 
+def validate_statistics(html: str, collected: dict) -> list[str]:
+    """Prüft jede Prozent-/Kennzahl-Angabe im Report gegen die tatsächlich
+    abgerufenen Rohtexte. Fängt das Muster ab: eine plausibel klingende,
+    aber erfundene Zahl (z.B. ein Frauenanteil-Prozentwert), die in der
+    Executive Summary auftaucht, obwohl sie in keiner der abgerufenen
+    Quellen tatsächlich vorkommt - und die die meldungsbezogene
+    Quellenprüfung (validate_source_names) nicht abdeckt, weil die
+    Summary keine eigene Quellenangabe hat.
+
+    Prüft nur die Zahl selbst (z.B. '52,7'), nicht den ganzen Satz - das
+    reicht, weil eine echte Zahl aus einer Quelle dort auch als
+    Ziffernfolge auftauchen muss; eine erfundene Zahl taucht nirgends auf.
+    Englische Quellen schreiben Dezimalzahlen mit Punkt ('52.7'), der
+    deutsche Report korrekt mit Komma ('52,7') - beide Schreibweisen
+    gegen den Quelltext prüfen, bevor als unbelegt gilt."""
+    all_source_text = " ".join(
+        e.get("text", "") for entries in collected.values() for e in entries
+        if e["status"] == "ok"
+    )
+    plain_html = re.sub(r'<[^>]+>', ' ', html)
+
+    numbers = re.findall(r'\d+(?:[.,]\d+)?\s?%', plain_html)
+    suspicious = []
+    for number in set(numbers):
+        digits_only = re.sub(r'[^\d.,]', '', number)
+        variant_a = digits_only.replace(",", ".")
+        variant_b = digits_only.replace(".", ",")
+        if variant_a not in all_source_text and variant_b not in all_source_text:
+            suspicious.append(number)
+    if suspicious:
+        logger.warning(f"Prozentangaben ohne Beleg in den Quellen gefunden: {suspicious}")
+    return sorted(suspicious)
+
+
 def validate_output_urls(html: str, collected: dict) -> list[str]:
     """Extrahiert alle URLs aus der LLM-Antwort und prüft sie gegen die
     Liste tatsächlich abgerufener Quellen. Gibt eine Liste unbekannter
@@ -472,6 +649,14 @@ def call_openrouter(prompt: str) -> str:
                 logger.info(f"429 bei {model} - warte {wait}s")
                 time.sleep(wait)
                 continue
+            if resp.status_code in (401, 403):
+                # Ungültiger/fehlender API-Key betrifft ALLE Modelle gleich -
+                # sinnlos, hier weitere Modelle durchzuprobieren.
+                raise PermissionError(
+                    f"OpenRouter meldet HTTP {resp.status_code} (API-Key ungültig, "
+                    f"fehlend oder widerrufen) - Details: {resp.text[:300]}. "
+                    "Bitte OPENROUTER_API_KEY-Secret prüfen."
+                )
             if resp.status_code in (400, 404, 500, 502, 503):
                 last_error = f"{model}: HTTP {resp.status_code} - {resp.text[:300]}"
                 logger.warning(f"Modell {model} fehlgeschlagen: {last_error}")
@@ -640,6 +825,15 @@ Reporting-Zyklus gegenprüfen</td>. Wenn du unsicher bist, ob eine Meldung
 HR/Payroll als Maßstab (Hoch = unmittelbarer Handlungsbedarf/Frist,
 Mittel = mittelfristig relevant, Niedrig = nur zur Information).
 
+REGEL 8 (Executive Summary): Die Executive Summary darf NUR Sachverhalte
+zusammenfassen, die auch weiter unten in einer der Kategorie-Meldungen
+mit eigener Quellenangabe vorkommen. Erfinde in der Summary KEINE
+zusätzlichen Zahlen, Prozentangaben, Benchmark-Werte oder Statistiken,
+die nicht auch in mindestens einer Einzelmeldung stehen - auch nicht,
+wenn sie plausibel klingen oder dir aus anderem Wissen bekannt
+vorkommen. Im Zweifel: allgemeiner formulieren statt eine Zahl zu
+erfinden.
+
 Kategorien und Styling (in dieser Reihenfolge, jede Kategorie als
 eigener H2-Block mit dem jeweiligen Icon und der jeweiligen Rahmen-/
 Hintergrundfarbe):
@@ -674,14 +868,56 @@ def run(week_label: str, subject: str):
     logger.info("Rufe alle HR-Quellen ab...")
     collected = collect_all_sources()
 
+    newsletter_sources = fetch_hr_newsletter_sources()
+    if newsletter_sources:
+        collected["Newsletter-Auswertung"] = newsletter_sources
+
     ok_count = sum(1 for entries in collected.values() for e in entries if e["status"] == "ok")
     error_count = sum(1 for entries in collected.values() for e in entries if e["status"] != "ok")
     logger.info(f"{ok_count} Quellen erfolgreich abgerufen, {error_count} fehlgeschlagen.")
 
+    output_dir = os.environ.get("OUTPUT_DIR", "output")
+    os.makedirs(output_dir, exist_ok=True)
+    safe_label = week_label.replace(" ", "_").replace("/", "-")
+    output_path = os.path.join(output_dir, f"HR-Briefing_{safe_label}.html")
+    now_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
+
     today_str = datetime.date.today().strftime("%d.%m.%Y")
-    body_html = generate_briefing_html(collected, week_label, today_str)
+    try:
+        body_html = generate_briefing_html(collected, week_label, today_str)
+    except Exception as exc:
+        # Selbst bei einem Totalausfall (z.B. ungültiger API-Key, alle
+        # Modelle fehlgeschlagen) soll NICHT die gesamte Recherche
+        # spurlos verloren gehen - mindestens eine Diagnose-Datei mit
+        # den erfolgreich abgerufenen Quellen wird gespeichert, damit
+        # ein Actions-Artifact entsteht statt gar nichts.
+        source_list = "".join(
+            f"<li>{'✅' if e['status'] == 'ok' else '❌'} {e['name']} - {e['url']}</li>"
+            for entries in collected.values() for e in entries
+        )
+        error_html = f"""<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="utf-8"><title>HR-Briefing FEHLGESCHLAGEN: {week_label}</title></head>
+<body style="font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;">
+<div style="background:#f8d7da;border:1px solid #dc3545;padding:16px;">
+<h1 style="color:#721c24;">HR-Briefing konnte nicht erstellt werden</h1>
+<p><strong>Fehler:</strong> {type(exc).__name__}: {exc}</p>
+</div>
+<h2>Trotzdem erfolgreich abgerufene Quellen ({ok_count} von {ok_count + error_count}):</h2>
+<ul>{source_list}</ul>
+<div style="margin-top:40px;font-size:12px;color:#888;">
+Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
+</div>
+</body>
+</html>"""
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(error_html)
+        logger.info(f"Fehler-Diagnose gespeichert unter: {output_path}")
+        raise  # Job soll weiterhin als fehlgeschlagen markiert werden
+
     unknown_urls = validate_output_urls(body_html, collected)
     suspicious_names = validate_source_names(body_html, collected)
+    suspicious_stats = validate_statistics(body_html, collected)
 
     warning_items = []
     if unknown_urls:
@@ -694,6 +930,13 @@ def run(week_label: str, subject: str):
             "<strong>Verdächtige Quellenangaben</strong> (passen zu keinem "
             f"konfigurierten Quellennamen): <ul>"
             f"{''.join(f'<li>{n}</li>' for n in suspicious_names)}</ul>"
+        )
+    if suspicious_stats:
+        warning_items.append(
+            "<strong>Unbelegte Prozent-/Kennzahlen</strong> (tauchen im Report "
+            "auf, aber in keiner der abgerufenen Quellen - möglicherweise "
+            f"erfunden, z.B. in der Executive Summary): <ul>"
+            f"{''.join(f'<li>{s}</li>' for s in suspicious_stats)}</ul>"
         )
 
     warning_banner = ""
@@ -718,7 +961,6 @@ def run(week_label: str, subject: str):
             f"</ul></details>"
         )
 
-    now_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
     full_html = f"""<!DOCTYPE html>
 <html lang="de">
 <head><meta charset="utf-8"><title>HR-Wissen Weekly: {week_label}</title></head>
@@ -732,12 +974,9 @@ def run(week_label: str, subject: str):
 </body>
 </html>"""
 
-    # Report IMMER als Datei speichern - unabhängig davon, ob der
-    # Mailversand danach klappt.
-    output_dir = os.environ.get("OUTPUT_DIR", "output")
-    os.makedirs(output_dir, exist_ok=True)
-    safe_label = week_label.replace(" ", "_").replace("/", "-")
-    output_path = os.path.join(output_dir, f"HR-Briefing_{safe_label}.html")
+    # Report speichern - unabhängig davon, ob der Mailversand danach
+    # klappt. So geht bei einem Versand-Fehler (z.B. fehlendes/falsches
+    # Secret) nicht der ganze Rechercheinhalt verloren.
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(full_html)
     logger.info(f"Report gespeichert unter: {output_path}")
