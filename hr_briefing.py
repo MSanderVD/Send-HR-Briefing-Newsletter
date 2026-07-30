@@ -311,15 +311,24 @@ def validate_source_names(html: str, collected: dict) -> list[str]:
     konfigurierten Quellennamen passt (Wort-Ebene statt Komplett-Name -
     siehe Lesson Learned #9: Modelle zitieren Quellen oft verkürzt,
     z.B. 'BAG' statt 'Bundesarbeitsgericht (BAG)' - das ist korrekt und
-    darf keinen Fehlalarm auslösen)."""
+    darf keinen Fehlalarm auslösen).
+
+    Der Name steht im HTML-Template üblicherweise INNERHALB eines
+    unmittelbar folgenden <a>-Links ('Quelle: <a href="...">BAG</a>'),
+    nicht als Klartext davor. Deshalb zwei Varianten: zuerst versuchen,
+    den Linktext zu erfassen; nur falls kein Link folgt, den Klartext
+    direkt nach 'Quelle:' nehmen."""
     known_tokens_per_name = [
         _significant_tokens(e["name"])
         for entries in collected.values() for e in entries
         if e["status"] == "ok"
     ]
     suspicious = []
-    for match in re.finditer(r'Quelle:\s*([^<\n]{1,80})', html):
-        cited = match.group(1).strip()
+    pattern = r'Quelle:\s*(?:<a[^>]*>([^<]{1,80})</a>|([^<\n]{1,80}))'
+    for match in re.finditer(pattern, html):
+        cited = (match.group(1) or match.group(2) or "").strip()
+        if not cited:
+            continue  # nichts Zitierfähiges gefunden - kein Fehlalarm
         cited_normalized = _normalize_for_comparison(cited)
         found = any(
             any(token in cited_normalized for token in tokens)
