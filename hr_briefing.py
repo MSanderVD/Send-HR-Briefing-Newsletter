@@ -45,6 +45,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 import mail_graph
+import onedrive_upload
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -1016,6 +1017,16 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(full_html)
     logger.info(f"Report gespeichert unter: {output_path}")
+
+    try:
+        onedrive_upload.upload_to_onedrive(
+            full_html, f"HR-Briefing_{safe_label}.html"
+        )
+    except Exception as exc:
+        # Nicht fatal - der Report liegt ja bereits lokal (siehe oben)
+        # und als Actions-Artifact vor, falls der OneDrive-Upload aus
+        # irgendeinem Grund (noch) nicht klappt.
+        logger.warning(f"OneDrive-Upload fehlgeschlagen: {exc}")
 
     try:
         mail_graph.send_email(recipient, subject, full_html)
