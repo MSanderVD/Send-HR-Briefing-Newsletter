@@ -27,6 +27,11 @@ jobs:
           OPENROUTER_API_KEY:     ${{ secrets.OPENROUTER_API_KEY }}
           GMAIL_CREDENTIALS_JSON: ${{ secrets.GMAIL_CREDENTIALS_JSON }}
           GMAIL_TOKEN_JSON:       ${{ secrets.GMAIL_TOKEN_JSON }}
+          ONEDRIVE_TENANT_ID:     ${{ secrets.ONEDRIVE_TENANT_ID }}
+          ONEDRIVE_CLIENT_ID:     ${{ secrets.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_CLIENT_SECRET: ${{ secrets.ONEDRIVE_CLIENT_SECRET }}
+          ONEDRIVE_USER_EMAIL:    ${{ secrets.ONEDRIVE_USER_EMAIL }}
+          ONEDRIVE_FOLDER_PATH:   ${{ secrets.ONEDRIVE_FOLDER_PATH }}
         run: python hr_briefing.py --mode weekly
 
       - name: Report als Artifact hochladen
