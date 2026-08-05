@@ -46,6 +46,7 @@ from googleapiclient.discovery import build
 
 import mail_graph
 import onedrive_upload
+import web_search_sources
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -186,6 +187,42 @@ def collect_all_sources() -> dict:
             logger.info(f"[{category}] {name}: {status_note}")
             collected[category].append(entry)
     return collected
+
+
+def collect_search_based_sources(collected: dict) -> None:
+    """Ergänzt `collected` (in-place) um Quellen, die per echter Web-Suche
+    (Firecrawl) gefunden wurden - schließt die Lücke zu den festen
+    SOURCES-URLs, die nur Behörden-Übersichtsseiten abdecken und daher
+    tagesaktuelle/spezialisierte Fachblog-Analysen verpassen (siehe
+    web_search_sources.py für den Hintergrund). Jede gefundene URL wird
+    über die GLEICHE fetch_and_extract()-Funktion abgerufen wie die
+    festen Quellen - unterliegt also automatisch demselben Grounding-
+    Mechanismus, keine Sonderbehandlung nötig.
+
+    Bereits über die festen SOURCES abgedeckte URLs werden übersprungen
+    (keine doppelte Quelle im Kontext). Scheitert die Suche komplett
+    (kein API-Key, Netzwerkproblem), passiert einfach nichts - das
+    Briefing läuft dann nur mit den festen Quellen weiter."""
+    known_urls = {
+        e["url"] for entries in collected.values() for e in entries
+    }
+    urls_per_category = web_search_sources.find_urls_per_category()
+    for category, url_tuples in urls_per_category.items():
+        for title, url in url_tuples:
+            if url in known_urls:
+                continue
+            fetch_result = fetch_and_extract(url)
+            entry = {
+                "name": title[:80] or url,
+                "url": url,
+                "format": "Web-Suche (Firecrawl)",
+                "access_hint": "Per Web-Suche gefunden, nicht aus fester Quellenliste",
+                **fetch_result,
+            }
+            status_note = "✅" if entry["status"] == "ok" else f"❌ {entry['error']}"
+            logger.info(f"[{category}, Web-Suche] {title[:60]}: {status_note}")
+            collected.setdefault(category, []).append(entry)
+            known_urls.add(url)
 
 
 # ---------------------------------------------------------------------------
@@ -904,6 +941,9 @@ def run(week_label: str, subject: str):
 
     logger.info("Rufe alle HR-Quellen ab...")
     collected = collect_all_sources()
+
+    logger.info("Suche zusätzlich per Web-Suche nach aktuellen Fachbeiträgen...")
+    collect_search_based_sources(collected)
 
     newsletter_sources = fetch_hr_newsletter_sources()
     if newsletter_sources:
