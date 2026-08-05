@@ -32,6 +32,7 @@ jobs:
           ONEDRIVE_CLIENT_SECRET: ${{ secrets.ONEDRIVE_CLIENT_SECRET }}
           ONEDRIVE_USER_EMAIL:    ${{ secrets.ONEDRIVE_USER_EMAIL }}
           ONEDRIVE_FOLDER_PATH:   ${{ secrets.ONEDRIVE_FOLDER_PATH }}
+          FIRECRAWL_API_KEY:      ${{ secrets.FIRECRAWL_API_KEY }}
         run: python hr_briefing.py --mode weekly
 
       - name: Report als Artifact hochladen
