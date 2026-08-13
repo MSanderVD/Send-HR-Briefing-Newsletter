@@ -19,9 +19,11 @@ Modell-Auswahl und Fehlerbehandlung.
    Quellen geprüft, und jede "Quelle:"-Angabe gegen die konfigurierten
    Quellennamen (auf Wort-Ebene – verkürzte Zitate wie "BAG" statt
    "Bundesarbeitsgericht (BAG)" sind korrekt und lösen keinen Fehlalarm aus).
-4. Versand per **Microsoft Graph API** (Exchange Online / M365,
-   `dashoefer.onmicrosoft.com`) an `REPORT_RECIPIENT_EMAIL` – siehe
-   `mail_graph.py`. Kein Gmail mehr im Einsatz.
+4. Versand per **Gmail API** von `vdnewsletteranalyse@gmail.com` an
+   `REPORT_RECIPIENT_EMAIL` – siehe `send_email_gmail()` in
+   `hr_briefing.py`. Dasselbe OAuth-Token wird auch für das Auslesen der
+   HR-Newsletter aus diesem Postfach genutzt (Scopes `gmail.readonly` +
+   `gmail.send`).
 
 Kategorien (aus der ursprünglichen PhiBox-Vorlage übernommen):
 Gesetzesvorhaben · BMF-Schreiben · Urteile · Verordnungen ·
@@ -29,28 +31,32 @@ Gesetzgebungsverfahren · HR-Digitalisierung.
 
 ## Setup
 
-### 1. Azure-AD-App-Registrierung anlegen (einmalig, durch einen Admin)
+### 1. Gmail-Token erzeugen (einmalig, lokal)
 
-Mailversand läuft über Microsoft Graph (App-Only-Auth), nicht mehr über
-Gmail. Details und Hintergrund stehen ausführlich in `mail_graph.py`,
-kurz zusammengefasst:
+Lesen *und* Versenden laufen über ein gemeinsames OAuth-Token für
+`vdnewsletteranalyse@gmail.com`. Der OAuth-Client (Typ **Desktop-App**)
+kann aus dem bestehenden `Newsletter-Analyse`-Projekt in der Google Cloud
+Console wiederverwendet werden – nötig ist dort lediglich, dass die
+**Gmail API** aktiviert ist.
 
-1. **Azure Portal → Azure Active Directory → App registrations →
-   New registration** (z. B. Name "HR-Briefing-Mailer")
-2. **API permissions → Add a permission → Microsoft Graph → Application
-   permissions → `Mail.Send`**
-3. **"Grant admin consent for `dashoefer`"** klicken – zwingend nötig,
-   da es sich um eine Application- (nicht Delegated-)Permission handelt.
-   Ohne diesen Schritt schlägt der Versand mit HTTP 403 fehl.
-4. **Certificates & secrets → New client secret** → Wert sofort
-   kopieren (wird nur einmal angezeigt).
-5. Von der Overview-Seite: **Application (client) ID** und
-   **Directory (tenant) ID** kopieren.
-6. Empfohlen (Sicherheit): Per PowerShell (`ExchangeOnlineManagement`-
-   Modul) eine **Application Access Policy** einrichten, damit die App
-   nur das eine Absender-Postfach (z. B. `ki@dashoefer.onmicrosoft.com`)
-   ansprechen darf – `Mail.Send` als Application-Permission erlaubt
-   sonst standardmäßig Versand "as any user" im gesamten Tenant.
+1. `credentials.json` des OAuth-Clients herunterladen und neben
+   `generate_token.py` legen (alternativ den Inhalt in die Variable
+   `GMAIL_CREDENTIALS_JSON` exportieren).
+2. `pip install -r requirements.txt`
+3. `python generate_token.py`
+4. Im Browser mit `vdnewsletteranalyse@gmail.com` einloggen und **beide**
+   Berechtigungen bestätigen (E-Mails lesen **und** senden). Das Skript
+   bricht mit einer Fehlermeldung ab, wenn ein Scope fehlt – dann einfach
+   erneut ausführen.
+5. Die ausgegebene JSON-Zeile komplett als Secret `GMAIL_TOKEN_JSON`
+   hinterlegen (siehe unten).
+
+Wichtig: Steht der OAuth-Zustimmungsbildschirm im Google-Cloud-Projekt
+noch auf **"Testing"**, verfällt das Refresh-Token nach 7 Tagen und der
+Actions-Lauf schlägt fehl. Für den Dauerbetrieb den Zustimmungsbildschirm
+auf **"In Produktion"** setzen; eine Google-Verifizierung ist bei Nutzung
+im eigenen Konto nicht nötig (es erscheint nur ein Warnhinweis beim
+Login).
 
 ### 2. GitHub Secrets anlegen
 
@@ -58,12 +64,13 @@ Unter *Settings → Secrets and variables → Actions*:
 
 | Secret | Beschreibung |
 |---|---|
-| `GRAPH_TENANT_ID` | Directory (tenant) ID oder Domain, z. B. `dashoefer.onmicrosoft.com` |
-| `GRAPH_CLIENT_ID` | Application (client) ID der App-Registrierung |
-| `GRAPH_CLIENT_SECRET` | Client-Secret der App-Registrierung |
-| `GRAPH_SENDER_UPN` | Absender-Postfach, z. B. `ki@dashoefer.onmicrosoft.com` |
+| `GMAIL_CREDENTIALS_JSON` | Inhalt der `credentials.json` des OAuth-Clients (Desktop-App) – kann aus dem `Newsletter-Analyse`-Repo übernommen werden |
+| `GMAIL_TOKEN_JSON` | Ausgabe von `generate_token.py` – enthält das Refresh-Token mit **beiden** Scopes (`gmail.readonly` + `gmail.send`) |
 | `REPORT_RECIPIENT_EMAIL` | Empfänger-Adresse (z. B. `l.dashoefer@dashoefer.de`) |
 | `OPENROUTER_API_KEY` | Kostenloser API-Key von [openrouter.ai](https://openrouter.ai), kann vom KI-Briefing-Repo wiederverwendet werden |
+
+Die früheren `GRAPH_*`-Secrets (Microsoft-Graph-Versand) werden nicht mehr
+gelesen und können gelöscht werden.
 
 ### 3. Quellen anpassen
 
@@ -79,10 +86,8 @@ erfundene Inhalte).
 Im Tab *Actions* → *HR-Briefing* → *Run workflow* auslösen, oder lokal:
 
 ```bash
-export GRAPH_TENANT_ID='dashoefer.onmicrosoft.com'
-export GRAPH_CLIENT_ID='...'
-export GRAPH_CLIENT_SECRET='...'
-export GRAPH_SENDER_UPN='ki@dashoefer.onmicrosoft.com'
+export GMAIL_CREDENTIALS_JSON="$(cat credentials.json)"
+export GMAIL_TOKEN_JSON="$(cat token.json)"
 export REPORT_RECIPIENT_EMAIL='du@example.com'
 export OPENROUTER_API_KEY='...'
 python hr_briefing.py --mode weekly
@@ -107,17 +112,18 @@ python hr_briefing.py --mode weekly
   Zielserver getestet (die Sandbox hat keinen Netzwerkzugriff auf
   Behördendomains) – ein erster Testlauf über *Run workflow* sollte
   vor der ersten produktiven Woche gemacht werden.
-- `mail_graph.py` wurde nicht gegen einen echten Tenant getestet (aus
-  der Sandbox heraus kein Netzwerkzugriff auf `login.microsoftonline.com`/
-  `graph.microsoft.com`) – Token-Request- und sendMail-Logik folgen der
-  offiziellen Microsoft-Graph-Dokumentation, sollten aber beim ersten
-  Testlauf genau im Log geprüft werden (häufigste Fehlerquelle: fehlender
-  Admin Consent → HTTP 403).
+- Der Gmail-Versand wurde nicht aus der Sandbox heraus getestet (kein
+  Netzwerkzugriff auf `googleapis.com`) – beim ersten Testlauf das Log
+  prüfen. Häufigste Fehlerquellen:
+  - `403 insufficient authentication scopes` → `GMAIL_TOKEN_JSON` wurde
+    ohne `gmail.send` erzeugt, `generate_token.py` erneut ausführen.
+  - `invalid_grant` → Refresh-Token abgelaufen (OAuth-App noch im
+    Testing-Modus, 7-Tage-Limit) oder Zugriff im Google-Konto entzogen.
+- Gmail hat ein Versandlimit (bei kostenlosen Konten ~500 Empfänger/Tag).
+  Für ein Wochenbriefing an wenige Empfänger unkritisch; bei einem
+  größeren Verteiler wäre ein echter Mail-Dienst der bessere Weg.
 
 ## Geplant, noch nicht enthalten
 
-- Kombination mit dem `Newsletter-Analyse`-Repo (Gmail-Newsletter mit
-  HR-Keyword-Vorfilter) – als zweites Modul vorgesehen, sobald dieses
-  Kern-Skript stabil läuft.
 - GitLab-Migration (reines Kopieren + Workflow-Syntax übersetzen, erst
   nach Stabilisierung auf GitHub).
