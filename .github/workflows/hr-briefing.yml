@@ -19,10 +19,6 @@ jobs:
         run: pip install -r requirements.txt
       - name: HR-Briefing ausführen
         env:
-          GRAPH_TENANT_ID:        ${{ secrets.GRAPH_TENANT_ID }}
-          GRAPH_CLIENT_ID:        ${{ secrets.GRAPH_CLIENT_ID }}
-          GRAPH_CLIENT_SECRET:    ${{ secrets.GRAPH_CLIENT_SECRET }}
-          GRAPH_SENDER_UPN:       ${{ secrets.GRAPH_SENDER_UPN }}
           REPORT_RECIPIENT_EMAIL: ${{ secrets.REPORT_RECIPIENT_EMAIL }}
           OPENROUTER_API_KEY:     ${{ secrets.OPENROUTER_API_KEY }}
           GMAIL_CREDENTIALS_JSON: ${{ secrets.GMAIL_CREDENTIALS_JSON }}
