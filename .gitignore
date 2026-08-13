@@ -1,0 +1,14 @@
+# OAuth-Credentials – NIEMALS committen (siehe generate_token.py)
+credentials.json
+token.json
+*.json.bak
+
+# Generierte Reports
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
