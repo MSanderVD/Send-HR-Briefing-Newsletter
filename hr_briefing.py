@@ -19,8 +19,11 @@ gesammelten Lessons Learned:
      abgerufener Quellen geprüft, und alle "Quelle:"-Angaben gegen die
      Namen der konfigurierten Quellen (auf Wort-Ebene, nicht Komplett-
      Name - siehe validate_source_names).
-  5. Versand per Microsoft Graph API (Exchange Online) an
-     REPORT_RECIPIENT_EMAIL - siehe mail_graph.py für den Auth-/Send-Flow.
+  5. Versand per Gmail API (OAuth2 mit Refresh-Token) von
+     vdnewsletteranalyse@gmail.com an REPORT_RECIPIENT_EMAIL - siehe
+     send_email_gmail() weiter unten. Lesen der Newsletter und Versand
+     laufen über EIN gemeinsames Token (Scopes gmail.readonly +
+     gmail.send), erzeugt mit generate_token.py.
 
 Ursprung: PhiBox-Agent "Send Email HR Briefing" (agent-send-email-
 hr-briefing.json) - Kategorien, Quellen-Prioritäten, HTML-Template und
@@ -36,6 +39,7 @@ import logging
 import argparse
 import datetime
 import threading
+from email.mime.text import MIMEText
 
 import requests
 import langdetect
@@ -44,7 +48,6 @@ from bs4 import BeautifulSoup
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-import mail_graph
 import onedrive_upload
 import web_search_sources
 
@@ -53,6 +56,14 @@ logger = logging.getLogger(__name__)
 
 USER_AGENT = "Mozilla/5.0 (compatible; VD-HR-Briefing-Bot/1.0; +internal-use)"
 TIMEOUT_SECONDS = 15
+
+# Ein Token für beides: Newsletter lesen UND Briefing versenden.
+# Muss identisch sein mit der Liste in generate_token.py - weicht sie ab,
+# lehnt Google die Token-Nutzung ab bzw. der Versand scheitert mit 403.
+GMAIL_SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.send",
+]
 
 # ---------------------------------------------------------------------------
 # Quellen-Konfiguration
@@ -279,11 +290,14 @@ def _extract_email_body(payload: dict) -> str:
     return ""
 
 
-def _get_gmail_readonly_service():
-    """Separater, LESENDER Gmail-Zugriff (gmail.readonly) auf das
-    Newsletter-Postfach - unabhängig vom Mailversand, der über Microsoft
-    Graph läuft (siehe mail_graph.py). Nutzt dieselben Secrets/dasselbe
-    Konto wie das bestehende Newsletter-Analyse-Repo."""
+def _get_gmail_service():
+    """Gmail-Zugriff für BEIDES: Lesen der Newsletter (gmail.readonly)
+    und Versand des Briefings (gmail.send) - über ein gemeinsames
+    Refresh-Token im Secret GMAIL_TOKEN_JSON.
+
+    Wichtig: Das Token MUSS mit beiden Scopes erzeugt worden sein, sonst
+    scheitert der Versand mit einem 403 "insufficient authentication
+    scopes". Zum Neuerzeugen siehe generate_token.py."""
     creds_data = json.loads(os.environ["GMAIL_TOKEN_JSON"])
     client_info = json.loads(os.environ["GMAIL_CREDENTIALS_JSON"])["installed"]
     creds = Credentials(
@@ -292,7 +306,7 @@ def _get_gmail_readonly_service():
         token_uri="https://oauth2.googleapis.com/token",
         client_id=client_info["client_id"],
         client_secret=client_info["client_secret"],
-        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+        scopes=GMAIL_SCOPES,
     )
     return build("gmail", "v1", credentials=creds)
 
@@ -305,7 +319,7 @@ def fetch_hr_newsletter_sources(days_back: int = NEWSLETTER_DAYS_BACK) -> list[d
     Jede zurückgegebene Quelle bekommt einen echten Gmail-Deeplink als
     URL (funktioniert beim Öffnen im selben Konto)."""
     try:
-        service = _get_gmail_readonly_service()
+        service = _get_gmail_service()
     except Exception as exc:
         logger.warning(f"Newsletter-Postfach nicht erreichbar (Auth-Problem?): {exc}")
         return []
@@ -925,11 +939,28 @@ Klammern ersetzen, Tags/Inline-Styles unverändert lassen):
 
 
 # ---------------------------------------------------------------------------
-# Mailversand: Microsoft Graph API (Exchange Online), siehe mail_graph.py
+# Mailversand: Gmail API (OAuth2-Refresh-Token)
 # ---------------------------------------------------------------------------
-# Der eigentliche Versand-Code liegt in mail_graph.py (App-Only-Auth via
-# Client Credentials Grant). hr_briefing.py ruft nur noch
-# mail_graph.send_email(to, subject, html_body) auf - siehe run().
+# Absender ist das Konto, zu dem GMAIL_TOKEN_JSON gehört
+# (vdnewsletteranalyse@gmail.com). userId="me" bezieht sich immer auf
+# genau dieses Konto - ein abweichender From-Header würde von Gmail
+# ohnehin überschrieben, deshalb setzen wir keinen.
+
+
+def send_email_gmail(to: str, subject: str, html_body: str) -> None:
+    """Sendet das Briefing als HTML-Mail über die Gmail API.
+
+    Wirft bei jedem Fehler eine Exception - kein stilles Scheitern, damit
+    der aufrufende Code (run()) den Report trotzdem als Datei sichert und
+    der Actions-Lauf sichtbar rot wird."""
+    service = _get_gmail_service()
+
+    message = MIMEText(html_body, "html", "utf-8")
+    message["to"] = to
+    message["subject"] = subject
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+
+    service.users().messages().send(userId="me", body={"raw": raw}).execute()
 
 
 # ---------------------------------------------------------------------------
@@ -1069,8 +1100,8 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
         logger.warning(f"OneDrive-Upload fehlgeschlagen: {exc}")
 
     try:
-        mail_graph.send_email(recipient, subject, full_html)
-        logger.info("Mail erfolgreich versendet (Microsoft Graph).")
+        send_email_gmail(recipient, subject, full_html)
+        logger.info("Mail erfolgreich versendet (Gmail API).")
     except Exception as exc:
         logger.error(f"Mailversand fehlgeschlagen: {exc}")
         logger.error(
