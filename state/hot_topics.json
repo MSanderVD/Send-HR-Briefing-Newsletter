@@ -1,5 +1,228 @@
 {
   "_hinweis": "Gedaechtnis des Themenradars. hot_topics.py schreibt diese Datei bei jedem Lauf fort, der Workflow committet sie zurueck - nicht von Hand pflegen. Sie startet bewusst leer: ein Vorbefuellen aus den bereits versendeten Newsletter-HTMLs war erprobt, lieferte aber unzuverlaessige Zuordnungen, weil diese Dateien keine saubere Satzstruktur haben (Tabellenzellen und Aufzaehlungen ohne Satzzeichen). Gegen echte Quelltexte greift die Erkennung deutlich besser; ab dem ersten Lauf fuellt sich die Datei von selbst.",
-  "themen": {},
+  "aktualisiert": "2026-09-19",
+  "themen": {
+    "arbeitgebers": {
+      "anzeige": "Arbeitgebers",
+      "beleg": "Nach Auffassung des Gerichts wurde das Arbeitsverhältnis durch die Kündigung des Arbeitgebers vom 24. November 2025 wirksam zum 31. Januar 2026 beendet.",
+      "beleg_quelle": "https://www.haufe.de/personal/arbeitsrecht/urteil-kuendigung-wegen-fuehrerscheinentzug_76_694732.html",
+      "beleg_quelle_name": "Urteil: Kündigung wegen Führerscheinentzug | Personal",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.haufe.de/personal/arbeitsrecht/urteil-kuendigung-wegen-fuehrerscheinentzug_76_694732.html"
+      ],
+      "stichtag": "2025-11-24",
+      "stichtag_art": "gilt ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "entsprechend": {
+      "anzeige": "Entsprechend",
+      "beleg": "Entsprechend der gestaffelten Umsetzungsfristen, sollte zum 2. August 2026 das Kernstück des AI Acts, die umfangreichen Pflichten bei der Nutzung von Hochrisiko-KI, zur Anwendung kommen.",
+      "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
+      "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/"
+      ],
+      "stichtag": "2026-08-02",
+      "stichtag_art": "Umsetzungsfrist",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "foederalismusreform": {
+      "anzeige": "Föderalismusreform",
+      "beleg": "Vor 20 Jahren, am 1. September 2006, trat die Föderalismusreform I in Kraft.",
+      "beleg_quelle": "https://www.bundesrat.de/",
+      "beleg_quelle_name": "Bundesrat – Homepage",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 2,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.bundesrat.de/"
+      ],
+      "stichtag": "2006-09-01",
+      "stichtag_art": "Inkrafttreten",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "foerderrichtlinie": {
+      "anzeige": "Förderrichtlinie",
+      "beleg": "ist am 19. Mai 2026 in Kraft getreten.",
+      "beleg_quelle": "https://www.lohnsteuer-kompakt.de/steuerwissen/bafa-foerderkompass-2026-foerderprogramme-im-ueberblick/",
+      "beleg_quelle_name": "BAFA Förderkompass 2026: Förderprogramme im Überblick",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.lohnsteuer-kompakt.de/steuerwissen/bafa-foerderkompass-2026-foerderprogramme-im-ueberblick/"
+      ],
+      "stichtag": "2026-05-19",
+      "stichtag_art": "Inkrafttreten",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "lohnsteuerabzugsverfahren": {
+      "anzeige": "Lohnsteuerabzugsverfahren",
+      "beleg": "Die Verwaltung ändert mit dem BMF-Schreiben vom 24. Juni 2026 das BMF-Schreiben vom 14. August 2025 zur Vorsorgepauschale im Lohnsteuerabzugsverfahren ab 2026. Das neue BMF-Schreiben betrifft die Vorsorgepauschale im Lohnsteuerabzugsverfahren bei gesetzlich krankenversicherten Dienstordnungsangestellten und ist ab dem 1. Januar 2026 anzuwenden.",
+      "beleg_quelle": "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html",
+      "beleg_quelle_name": "BMF – Schreiben Lohnsteuer/Allgemeines",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 2,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html"
+      ],
+      "stichtag": "2026-06-24",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "mindeststeuergesetz": {
+      "anzeige": "Mindeststeuergesetz",
+      "beleg": "Die meisten Änderungen sollen ab 1. Januar 2027 anwendbar sein.",
+      "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
+      "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/"
+      ],
+      "stichtag": "2027-01-01",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "onestopshopverfahren": {
+      "anzeige": "One-Stop-Shop-Verfahren",
+      "beleg": "Für Lieferungen von Gas, Elektrizität, Wärme und Kälte soll zwischen dem 01.01.2027 und dem 30.06.2028 das One-Stop-Shop-Verfahren für innergemeinschaftliche Fernverkäufe anwendbar sein.",
+      "beleg_quelle": "https://www.husemannpartner.de/aktuelles/jahressteuergesetz-2026",
+      "beleg_quelle_name": "Jahressteuergesetz 2026 - Husemann",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.husemannpartner.de/aktuelles/jahressteuergesetz-2026"
+      ],
+      "stichtag": "2027-01-01",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "organschaft": {
+      "anzeige": "Organschaft",
+      "beleg": "Die Erklärung ist ab dem 1. Juli 2028 möglich; Anwendung des neuen Rechts erstmals ab dem 1. Januar 2029. Wir veröffentlichen hierzu im Oktober 2026 einen eigenen Newsbeitrag.",
+      "beleg_quelle": "https://www.dhpg.de/de/newsroom/blog/jahressteuergesetz2026-kompakter-ueberblick-zu-den-zentralen-steueraenderungen",
+      "beleg_quelle_name": "Jahressteuergesetz 2026: Kompakter Überblick zu den zentralen... - dhpg",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.dhpg.de/de/newsroom/blog/jahressteuergesetz2026-kompakter-ueberblick-zu-den-zentralen-steueraenderungen"
+      ],
+      "stichtag": "2028-07-01",
+      "stichtag_art": "erstmals ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "organschaften": {
+      "anzeige": "Organschaften",
+      "beleg": "Unklar ist noch die Übergangsregelung für zu diesem Zeitpunkt bereits bestehende Organschaften; ggf. muss ein Antrag gestellt werden, um die Anerkennung über den 31. Dezember 2029 hinaus zu sichern.",
+      "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
+      "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/"
+      ],
+      "stichtag": "2029-12-31",
+      "stichtag_art": "Übergangsfrist",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "steuerpflichtige": {
+      "anzeige": "Steuerpflichtige",
+      "beleg": "Und die Übergangsfrist ist lang und wurde schließlich noch einmal gestreckt: Das Ganze soll erst ab 1. Januar 2030 gelten.",
+      "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
+      "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/"
+      ],
+      "stichtag": "2030-01-01",
+      "stichtag_art": "Übergangsfrist",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "steuerungsmechanismen": {
+      "anzeige": "Steuerungsmechanismen",
+      "beleg": "Zum 2. Februar 2025 traten allgemeine Bestimmungen sowie Verbote im Rahmen der KI Nutzung und zum 2. August 2025 Regeln zur KI mit allgemeinem Verwendungszweck sowie zu Steuerungsmechanismen in Kraft.",
+      "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
+      "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/"
+      ],
+      "stichtag": "2025-08-02",
+      "stichtag_art": "Inkrafttreten",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "verbraucherkreditrichtlinie": {
+      "anzeige": "Verbraucherkreditrichtlinie",
+      "beleg": "Die Richtlinie war ursprünglich bis zum 20. November 2025 umzusetzen.",
+      "beleg_quelle": "https://www.bundesrat.de/SharedDocs/termine/DE/presse/2026/20260923-va.html",
+      "beleg_quelle_name": "Bundesrat – Homepage → Terminhinweis Vermittlungsausschuss tagt zur Schuldnerberatung",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 2,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.bundesrat.de/SharedDocs/termine/DE/presse/2026/20260923-va.html"
+      ],
+      "stichtag": "2025-11-20",
+      "stichtag_art": "Umsetzungsfrist",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "zuordnungen": {
+      "anzeige": "Zuordnungen",
+      "beleg": "Die Neuregelung soll erstmals auf Zuordnungen anzuwenden sein, die nach dem 31. Dezember 2026 dienst- oder arbeitsrechtlich festgelegt werden (§ 52 Abs. 16b EStG-E).",
+      "beleg_quelle": "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html",
+      "beleg_quelle_name": "Geplante lohnsteuerliche Änderungen laut Jahressteuergesetz 2026",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html"
+      ],
+      "stichtag": "2026-12-31",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-09-19"
+    }
+  },
   "version": 2
 }
