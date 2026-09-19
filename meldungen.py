@@ -148,26 +148,41 @@ def _schema_fuer(kategorie: str) -> dict:
 # Prompt-Bau
 # ---------------------------------------------------------------------------
 
-def _quellenblock(entries: list[dict]) -> str:
+def _quellenblock(entries: list[dict]) -> tuple[str, dict]:
     """Baut den Kontext EINER Kategorie, mit Budgetgrenze. Detailseiten
     stehen zuerst, weil sie den eigentlichen Inhalt tragen - eine
-    Übersichtsseite liefert nur Überschriften."""
+    Übersichtsseite liefert nur Überschriften.
+
+    Jede Quelle bekommt eine NUMMER, und das Modell gibt später nur diese
+    Nummer zurück statt der URL. Grund: im ersten Produktivlauf liessen
+    die freien Modelle das URL-Feld reihenweise leer - in den Kategorien
+    "Urteile" und "Gesetzesvorhaben" fielen dadurch ALLE Meldungen durch
+    die Grounding-Prüfung. Eine 120 Zeichen lange URL fehlerfrei
+    abzuschreiben ist für ein kleines Modell eine andere Aufgabe als eine
+    einstellige Zahl zu nennen.
+
+    Nebeneffekt, der das Grounding verbessert: Eine URL kann so gar nicht
+    mehr erfunden werden, weil sie in Python aus der Nummer aufgelöst
+    wird und nie durch das Modell läuft.
+
+    Rückgabe: (Kontexttext, {Nummer: Quelleneintrag})."""
     sortiert = sorted(
         (e for e in entries if e.get("status") == "ok" and e.get("text")),
         key=lambda e: 0 if e.get("ist_detailseite") else 1,
     )
-    bloecke, verbraucht = [], 0
-    for e in sortiert:
+    bloecke, verbraucht, register = [], 0, {}
+    for nummer, e in enumerate(sortiert, start=1):
         text = e["text"][:ZEICHEN_JE_QUELLE]
         block = (
-            f"--- QUELLE: {e['name']} | URL: {e['url']} | "
+            f"--- QUELLE {nummer}: {e['name']} | "
             f"Format: {e.get('format', '?')} ---\n{text}\n"
         )
         if verbraucht + len(block) > ZEICHEN_JE_KATEGORIE:
             break
         bloecke.append(block)
+        register[nummer] = e
         verbraucht += len(block)
-    return "\n".join(bloecke)
+    return "\n".join(bloecke), register
 
 
 def _feldliste(schema: dict) -> str:
@@ -178,7 +193,7 @@ def _feldliste(schema: dict) -> str:
         '  "hr_relevanz":     "Ein Satz: welche Folge hat das konkret für HR/Payroll",',
         '  "pruefpunkt":      "Ein Satz: was genau sollte im Unternehmen geprüft werden - ANDERE Aussage als hr_relevanz und handlungsbedarf",',
         '  "handlungsbedarf": "Max. 12 Wörter für die Übersichtstabelle, was HR jetzt tun sollte",',
-        '  "quelle_url":      "Die exakte URL aus dem Kontext, unverändert",',
+        '  "quelle_nr":       <Zahl>,  // PFLICHT: Nummer der Quelle, aus der die Meldung stammt (die Zahl hinter "QUELLE" im Kontext)',
         '  "quelle_name":     "Institution oder Medium, z.B. BAG, BMF, Haufe",',
     ]
     for feld, beschriftung in schema["fakten"]:
@@ -186,9 +201,10 @@ def _feldliste(schema: dict) -> str:
     return "\n".join(zeilen)
 
 
-def baue_prompt(kategorie: str, entries: list[dict], zeitraum: str) -> str | None:
+def baue_prompt(kategorie: str, entries: list[dict],
+                zeitraum: str) -> tuple[str, dict] | None:
     schema = _schema_fuer(kategorie)
-    kontext = _quellenblock(entries)
+    kontext, register = _quellenblock(entries)
     if not kontext.strip():
         return None
 
@@ -215,7 +231,11 @@ Betrachtungszeitraum: {zeitraum}
    Schreibe niemals zweimal denselben Satz.
 4. SPRACHE: Deutsch, vollständige Sätze, keine abgebrochenen Sätze, keine
    eckigen Klammern, kein HTML, keine Markdown-Formatierung im Text.
-5. AUSGABE: NUR ein JSON-Array, ohne Code-Fence, ohne Vor- oder Nachwort.
+5. QUELLE: "quelle_nr" ist Pflicht und muss die Zahl sein, die im Kontext
+   hinter "QUELLE" steht - also die Quelle, aus der die Meldung stammt.
+   Schreibe dort NUR die Zahl, keine URL und keinen Text. Eine Meldung
+   ohne gültige "quelle_nr" wird verworfen.
+6. AUSGABE: NUR ein JSON-Array, ohne Code-Fence, ohne Vor- oder Nachwort.
 
 Jedes Element hat genau diese Felder:
 {{
@@ -227,7 +247,7 @@ gib ein leeres Array zurück: []
 
 ━━━ KONTEXT (einzige zulässige Faktenquelle) ━━━
 {kontext}
-"""
+""", register
 
 
 # ---------------------------------------------------------------------------
@@ -327,7 +347,7 @@ HARTE_FELDER = ("aktenzeichen", "entscheidungsdatum", "schreiben_datum")
 
 
 def pruefe_meldung(meldung: dict, quelltexte: str, quelltexte_norm: str,
-                   bekannte_urls: set) -> tuple[dict, list]:
+                   bekannte_urls: set, register: dict) -> tuple[dict, list]:
     """Prüft eine einzelne Meldung gegen die abgerufenen Quelltexte.
 
     Es werden ZWEI Fassungen des Quelltexts gebraucht. Aktenzeichen und
@@ -346,9 +366,30 @@ def pruefe_meldung(meldung: dict, quelltexte: str, quelltexte_norm: str,
     Qualitätssicherungsmittel."""
     beanstandungen = []
 
-    url = (meldung.get("quelle_url") or "").strip()
-    if url not in bekannte_urls:
-        return None, [f"Meldung verworfen - URL nicht aus dem Abruf: {url or '(leer)'}"]
+    # Quelle bestimmen: bevorzugt über die Nummer, die das Modell nennt.
+    # Eine so aufgelöste URL stammt garantiert aus dem Abruf, weil sie
+    # gar nicht erst durch das Modell läuft.
+    quelle = None
+    roh_nr = meldung.get("quelle_nr")
+    if roh_nr is not None:
+        try:
+            quelle = register.get(int(str(roh_nr).strip()))
+        except (TypeError, ValueError):
+            quelle = None
+
+    if quelle is None:
+        # Notweg für Modelle, die statt der Nummer doch eine URL liefern.
+        url = (meldung.get("quelle_url") or "").strip()
+        if url in bekannte_urls:
+            quelle = {"url": url, "name": meldung.get("quelle_name") or ""}
+
+    if quelle is None:
+        return None, [
+            "Meldung verworfen - keine gültige Quelle angegeben "
+            f"(quelle_nr={roh_nr!r}): {meldung.get('ueberschrift') or '(ohne Titel)'!r}"
+        ]
+
+    url = quelle["url"]
 
     if not (meldung.get("ueberschrift") or "").strip():
         return None, ["Meldung verworfen - keine Überschrift"]
@@ -356,6 +397,9 @@ def pruefe_meldung(meldung: dict, quelltexte: str, quelltexte_norm: str,
         return None, [f"Meldung verworfen - Beschreibung zu dünn: {meldung.get('ueberschrift')!r}"]
 
     sauber = dict(meldung)
+    sauber["quelle_url"] = url
+    if not (sauber.get("quelle_name") or "").strip():
+        sauber["quelle_name"] = (quelle.get("name") or "Quelle").split(" → ")[0]
 
     # Harte Felder: wörtlich belegt oder raus.
     for feld in HARTE_FELDER:
@@ -441,11 +485,12 @@ def extrahiere_alle(collected: dict, zeitraum: str, llm_aufruf) -> tuple[dict, l
     ergebnis, alle_beanstandungen = {}, []
 
     for kategorie, entries in collected.items():
-        prompt = baue_prompt(kategorie, entries, zeitraum)
-        if prompt is None:
+        gebaut = baue_prompt(kategorie, entries, zeitraum)
+        if gebaut is None:
             logger.info(f"[{kategorie}] keine abrufbaren Quellen - übersprungen.")
             ergebnis[kategorie] = []
             continue
+        prompt, register = gebaut
 
         logger.info(f"[{kategorie}] Extraktion, Prompt {len(prompt)} Zeichen.")
         try:
@@ -462,7 +507,7 @@ def extrahiere_alle(collected: dict, zeitraum: str, llm_aufruf) -> tuple[dict, l
             if not isinstance(eintrag, dict):
                 continue
             sauber, hinweise = pruefe_meldung(
-                eintrag, quelltexte, quelltexte_norm, bekannte_urls
+                eintrag, quelltexte, quelltexte_norm, bekannte_urls, register
             )
             alle_beanstandungen.extend(hinweise)
             if sauber:

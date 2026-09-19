@@ -282,6 +282,19 @@ GATTUNGS_ENDUNGEN = (
     "regelung", "regelungen", "vorschrift", "vorschriften",
     "massnahme", "massnahmen", "maßnahme", "maßnahmen",
     "grundsaetze", "grundsätze", "voraussetzung", "voraussetzungen",
+    "zuordnung", "zuordnungen", "aenderung", "änderung",
+    "aenderungen", "änderungen", "mitteilung", "mitteilungen",
+)
+
+# Adverbien und Partizipien, die am Satzanfang großgeschrieben stehen und
+# lang genug für das Kompositum-Muster sind. Im ersten Produktivlauf kam
+# so "Entsprechend" als Thema in den Radar. Eine Endungsregel fängt die
+# ganze Wortklasse ab, statt sie einzeln zu sammeln.
+ADVERB_ENDUNGEN = (
+    "lich", "liche", "lichen", "licher", "liches",
+    "weise", "mäßig", "maessig", "halber", "seits", "dessen",
+    "end", "ends", "endes", "endem", "enden", "ender",
+    "gemäß", "gemaess", "artig", "wegen", "sichtlich",
 )
 
 # Ab dieser Länge ist ein "Satz" keiner mehr - dann hat die Zerlegung
@@ -313,6 +326,11 @@ def _finde_begriff(fenster: str) -> tuple[str, str] | None:
 
         unten = wort.lower()
         if unten.endswith(GATTUNGS_ENDUNGEN):
+            continue
+        # Ein Rechtsakt darf auf eine Adverb-Endung enden ("Gesetz über
+        # das Verfahren ... -gemäß" kommt vor), ein Adverb nie auf eine
+        # Rechtsakt-Endung - deshalb erst die Rechtsakt-Prüfung.
+        if unten.endswith(ADVERB_ENDUNGEN) and not unten.endswith(RECHTSAKT_ENDUNGEN):
             continue
         ist_rechtsakt = (
             unten.endswith(RECHTSAKT_ENDUNGEN)

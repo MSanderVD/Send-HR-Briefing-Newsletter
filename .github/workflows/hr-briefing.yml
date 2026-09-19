@@ -4,7 +4,26 @@ on:
   schedule:
     - cron: "0 6 * * 1"   # jeden Montag 06:00 UTC
 
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "weekly = vollständiger Lauf mit Versand · test = eine Kategorie, kein Versand"
+        type: choice
+        required: true
+        default: weekly
+        options: [weekly, test]
+      test_kategorie:
+        description: "Nur bei mode=test: welche Kategorie geprüft wird"
+        type: choice
+        required: false
+        default: Urteile
+        options:
+          - Gesetzesvorhaben
+          - BMF-Schreiben
+          - Urteile
+          - Verordnungen
+          - Gesetzgebungsverfahren
+          - HR-Digitalisierung
 
 # Der Lauf schreibt state/hot_topics.json zurück ins Repo - das ist das
 # Gedächtnis des Themenradars. Ohne Schreibrecht ginge der Verlauf nach
@@ -35,7 +54,9 @@ jobs:
           ONEDRIVE_USER_EMAIL:    ${{ secrets.ONEDRIVE_USER_EMAIL }}
           ONEDRIVE_FOLDER_PATH:   ${{ secrets.ONEDRIVE_FOLDER_PATH }}
           FIRECRAWL_API_KEY:      ${{ secrets.FIRECRAWL_API_KEY }}
-        run: python hr_briefing.py --mode weekly
+          TEST_KATEGORIE:         ${{ inputs.test_kategorie }}
+        # Der Zeitplan liefert keine inputs - dann gilt der volle Lauf.
+        run: python hr_briefing.py --mode ${{ inputs.mode || 'weekly' }}
 
       # Auch bei einem fehlgeschlagenen Lauf zurückschreiben: die Quellen
       # wurden ja abgerufen, und die dort gefundenen Stichtage sollen für
