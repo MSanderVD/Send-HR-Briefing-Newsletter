@@ -76,15 +76,32 @@ SEARCH_QUERIES = {
 }
 
 
-def _search_firecrawl(query: str, limit: int = RESULTS_PER_QUERY) -> list[dict]:
+def _search_firecrawl(query: str, limit: int = RESULTS_PER_QUERY,
+                      zeitfenster: str | None = "qdr:m") -> list[dict]:
     """Führt eine einzelne Firecrawl-Web-Suche aus. Gibt bei jedem Fehler
     (fehlender/ungültiger Key, Rate-Limit, Netzwerkproblem) eine leere
     Liste zurück statt einer Exception - eine fehlgeschlagene Suche soll
     das Briefing nicht zum Absturz bringen, nur diese eine Anfrage liefert
-    dann eben keine zusätzlichen Treffer."""
+    dann eben keine zusätzlichen Treffer.
+
+    `zeitfenster=None` hebt die Beschränkung auf den letzten Monat auf.
+    Das wird für die Dauerthemen-Suche gebraucht: ein Thema, dessen
+    Umsetzungsfrist in vier Monaten abläuft, ist weiter hoch relevant,
+    auch wenn seit sechs Wochen nichts Neues dazu erschienen ist. Mit der
+    festen qdr:m-Schranke war so ein Thema schlicht unauffindbar."""
     api_key = os.environ.get("FIRECRAWL_API_KEY")
     if not api_key:
         return []
+
+    nutzlast = {
+        "query": query,
+        "limit": limit,
+        "sources": ["web"],
+        "lang": "de",
+        "country": "DE",
+    }
+    if zeitfenster:
+        nutzlast["tbs"] = zeitfenster
 
     try:
         resp = requests.post(
@@ -93,14 +110,7 @@ def _search_firecrawl(query: str, limit: int = RESULTS_PER_QUERY) -> list[dict]:
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
-            json={
-                "query": query,
-                "limit": limit,
-                "sources": ["web"],
-                "tbs": "qdr:m",  # nur Ergebnisse aus dem letzten Monat
-                "lang": "de",
-                "country": "DE",
-            },
+            json=nutzlast,
             timeout=TIMEOUT_SECONDS,
         )
         if resp.status_code != 200:
@@ -150,3 +160,51 @@ def find_urls_per_category() -> dict[str, list[tuple[str, str]]]:
         logger.info(f"Web-Suche [{category}]: {len(category_results)} URL(s) gefunden.")
         found[category] = category_results
     return found
+
+
+# Wie viele Treffer je Dauerthema geholt werden. Klein gehalten: das
+# Thema ist bereits bekannt, gesucht wird nur der aktuelle Sachstand.
+TREFFER_JE_THEMA = 3
+MAX_URLS_HOT_TOPICS = 8
+
+
+def find_urls_fuer_themen(themen: list[str]) -> list[tuple[str, str]]:
+    """Sucht gezielt nach dem aktuellen Sachstand der laufenden
+    Dauerthemen aus hot_topics.py - ohne Ein-Monats-Schranke.
+
+    Damit bekommt der Newsletter auch dann etwas Belastbares über die
+    Entgelttransparenzrichtlinie oder die Teilkrankschreibung zu sehen,
+    wenn in der laufenden Woche zufällig keine Pressemitteilung dazu
+    erschienen ist - solange der Stichtag noch aussteht oder erst kurz
+    zurückliegt. Genau das war der Wunsch aus der Redaktion: ein Thema
+    bis zum Inkrafttreten und eine Karenzzeit darüber hinaus begleiten,
+    statt es nach einer Woche fallenzulassen.
+
+    Liefert (Titel, URL)-Tupel wie find_urls_per_category(); die Treffer
+    werden vom Aufrufer über dieselbe fetch_and_extract()-Funktion
+    abgerufen und unterliegen damit demselben Grounding."""
+    if not themen or not os.environ.get("FIRECRAWL_API_KEY"):
+        return []
+
+    gefunden: list[tuple[str, str]] = []
+    gesehen: set[str] = set()
+
+    for thema in themen:
+        for query in (f"{thema} aktueller Stand Arbeitgeber Pflichten",
+                      f"{thema} Inkrafttreten Umsetzung Unternehmen"):
+            for item in _search_firecrawl(query, limit=TREFFER_JE_THEMA, zeitfenster=None):
+                url = item.get("url", "")
+                titel = item.get("title", url)
+                if not url or url in gesehen:
+                    continue
+                gesehen.add(url)
+                gefunden.append((titel, url))
+                break   # ein guter Treffer je Anfrage genügt
+        if len(gefunden) >= MAX_URLS_HOT_TOPICS:
+            break
+
+    logger.info(
+        f"Web-Suche [Dauerthemen]: {len(gefunden)} URL(s) zu "
+        f"{len(themen)} laufenden Thema/Themen gefunden."
+    )
+    return gefunden[:MAX_URLS_HOT_TOPICS]

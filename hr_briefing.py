@@ -2,28 +2,30 @@
 HR-Briefing – wöchentliches HR-Wissen-Weekly per Email
 Läuft als GitHub Actions Workflow (wöchentlich / manuell).
 
-Gebaut nach demselben Muster wie das bestehende KI-Briefing
-(Send-AI-Briefing-Newsletter / ki_briefing.py), inkl. aller dort
-gesammelten Lessons Learned:
+Gebaut nach dem Muster des KI-Briefings (Send-AI-Briefing-Newsletter),
+inkl. der dort gesammelten Lessons Learned. Ablauf:
 
   1. Feste Quellen (Bundestag, Bundesregierung, BMAS, BMF, BAG, BFH, BSG,
-     Bundesrat, Deutsche Rentenversicherung, ...) werden ECHT abgerufen
-     (requests + BeautifulSoup) - kein Modellwissen.
-  2. Nur der tatsächlich abgerufene Text geht als Kontext an das LLM
-     (über OpenRouter, kostenlose Modelle, live abgefragt).
-  3. Das LLM darf NUR Fakten aus diesem Kontext verwenden und muss jede
-     Meldung mit der Quell-URL versehen. Aktenzeichen/Daten/Gerichte
-     dürfen nicht erfunden werden.
-  4. Nach der LLM-Antwort läuft ein automatischer Grounding-Check: Alle
-     im Report genannten URLs werden gegen die Liste tatsächlich
-     abgerufener Quellen geprüft, und alle "Quelle:"-Angaben gegen die
-     Namen der konfigurierten Quellen (auf Wort-Ebene, nicht Komplett-
-     Name - siehe validate_source_names).
-  5. Versand per Gmail API (OAuth2 mit Refresh-Token) von
-     vdnewsletteranalyse@gmail.com an REPORT_RECIPIENT_EMAIL - siehe
-     send_email_gmail() weiter unten. Lesen der Newsletter und Versand
-     laufen über EIN gemeinsames Token (Scopes gmail.readonly +
-     gmail.send), erzeugt mit generate_token.py.
+     Bundesrat, ...) werden ECHT abgerufen (requests + BeautifulSoup) -
+     kein Modellwissen.
+  2. Von den Übersichtsseiten wird den Links zu den EINZELMELDUNGEN
+     gefolgt (siehe folge_detailseiten). Ohne diesen Schritt steht im
+     Kontext nur eine Liste aus Datum und Überschrift, und das Modell
+     kann nichts Konkretes schreiben, ohne zu erfinden.
+  3. Je Kategorie EIN eigener LLM-Aufruf, der strukturiertes JSON mit
+     festen Pflichtfeldern liefert (meldungen.py). Der frühere Ansatz -
+     ein einziger Prompt mit allen Quellen plus HTML-Gerüst - überschritt
+     das Kontextfenster kostenloser Modelle um ein Mehrfaches.
+  4. Feldweise Grounding-Prüfung: Aktenzeichen und Daten müssen wörtlich
+     in einer abgerufenen Quelle stehen, sonst wird das Feld entfernt;
+     eine Meldung mit unbekannter URL wird ganz verworfen.
+  5. Das HTML baut render.py in Python, nicht das Modell.
+  6. hot_topics.py führt Dauerthemen über Läufe hinweg fort - bis zum
+     Inkrafttreten und eine Karenzzeit darüber hinaus.
+  7. Versand per Gmail API (OAuth2 mit Refresh-Token) von
+     vdnewsletteranalyse@gmail.com an REPORT_RECIPIENT_EMAIL. Lesen der
+     Newsletter und Versand laufen über EIN gemeinsames Token (Scopes
+     gmail.readonly + gmail.send), erzeugt mit generate_token.py.
 
 Ursprung: PhiBox-Agent "Send Email HR Briefing" (agent-send-email-
 hr-briefing.json) - Kategorien, Quellen-Prioritäten, HTML-Template und
@@ -40,6 +42,7 @@ import argparse
 import datetime
 import threading
 from email.mime.text import MIMEText
+from urllib.parse import urljoin, urlparse
 
 import requests
 import langdetect
@@ -50,6 +53,9 @@ from googleapiclient.discovery import build
 
 import onedrive_upload
 import web_search_sources
+import hot_topics
+import meldungen as meldungen_modul
+import render
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -64,6 +70,17 @@ GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.send",
 ]
+
+# Betrachtungszeitraum. Der Original-PhiBox-Agent arbeitete mit "letzte
+# ca. vier Wochen" und erlaubte ausdrücklich ältere Meldungen, wenn sie
+# einen Verfahrensstand, eine Frist oder eine bevorstehende Pflicht
+# betreffen. Diese Regel war bei der Portierung nach Python verloren
+# gegangen - der Newsletter kannte danach nur noch die laufende Woche.
+BETRACHTUNGSZEITRAUM = (
+    "die letzten rund vier Wochen; ältere Meldungen sind ausdrücklich "
+    "erwünscht, wenn sie einen aktuellen Verfahrensstand, eine laufende "
+    "Frist oder eine bevorstehende Pflicht betreffen"
+)
 
 # ---------------------------------------------------------------------------
 # Quellen-Konfiguration
@@ -121,44 +138,23 @@ SOURCES = {
     ],
 }
 
-CATEGORY_ICON = {
-    "Gesetzesvorhaben": "📋",
-    "BMF-Schreiben": "📄",
-    "Urteile": "⚖️",
-    "Verordnungen": "🇪🇺",
-    "Gesetzgebungsverfahren": "🔄",
-    "HR-Digitalisierung": "💻",
-}
-
-CATEGORY_COLOR = {
-    "Gesetzesvorhaben": "#1a3c6e",
-    "BMF-Schreiben": "#0f766e",
-    "Urteile": "#9a2d2d",
-    "Verordnungen": "#1e5fa8",
-    "Gesetzgebungsverfahren": "#a86d00",
-    "HR-Digitalisierung": "#5b3a8e",
-}
-
-CATEGORY_BG = {
-    "Gesetzesvorhaben": "#f0f4fb",
-    "BMF-Schreiben": "#effaf8",
-    "Urteile": "#fcf3f3",
-    "Verordnungen": "#eef5fc",
-    "Gesetzgebungsverfahren": "#fdf8ef",
-    "HR-Digitalisierung": "#f5f1fb",
-}
+# Reihenfolge der Kategorien im fertigen Newsletter.
+KATEGORIE_REIHENFOLGE = list(SOURCES) + ["Newsletter-Auswertung"]
 
 
 # ---------------------------------------------------------------------------
 # Schritt 1: Echtes Abrufen der Quellen
 # ---------------------------------------------------------------------------
 
-def fetch_and_extract(url: str, max_chars: int = 4000) -> dict:
+def fetch_and_extract(url: str, max_chars: int = 6000, mit_links: bool = False) -> dict:
     """Ruft eine URL wirklich ab und liefert bereinigten Text zurück.
-    status == 'error' bedeutet: NICHT verwenden, keine Ersatzinhalte."""
+    status == 'error' bedeutet: NICHT verwenden, keine Ersatzinhalte.
+
+    Mit `mit_links=True` werden zusätzlich alle Links samt Linktext
+    gesammelt - Grundlage für folge_detailseiten()."""
     result = {
         "url": url, "status": "error", "http_status": None,
-        "title": None, "text": "", "error": None,
+        "title": None, "text": "", "error": None, "links": [],
         "fetched_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
     try:
@@ -167,6 +163,17 @@ def fetch_and_extract(url: str, max_chars: int = 4000) -> dict:
         resp.raise_for_status()
 
         soup = BeautifulSoup(resp.text, "html.parser")
+
+        if mit_links:
+            # Links einsammeln, nachdem Navigation/Kopf/Fußzeile entfernt
+            # sind - dort stehen nur Rubriken, keine Meldungen.
+            for tag in soup(["nav", "footer", "header"]):
+                tag.decompose()
+            for a in soup.find_all("a", href=True):
+                text = a.get_text(separator=" ", strip=True)
+                if text:
+                    result["links"].append((text, urljoin(url, a["href"])))
+
         for tag in soup(["script", "style", "nav", "footer", "header", "noscript"]):
             tag.decompose()
 
@@ -179,6 +186,96 @@ def fetch_and_extract(url: str, max_chars: int = 4000) -> dict:
     return result
 
 
+# Linktexte, die nie zu einer Einzelmeldung führen. Ohne diesen Filter
+# besteht die halbe Ausbeute aus "Mehr erfahren" und "Zur Startseite".
+LINK_STOPPWOERTER = (
+    "mehr erfahren", "weiterlesen", "zur startseite", "startseite",
+    "datenschutz", "impressum", "kontakt", "barrierefrei", "newsletter",
+    "cookie", "suche", "sitemap", "nach oben", "drucken", "teilen",
+    "english", "leichte sprache", "gebärdensprache",
+    "übersicht", "alle anzeigen", "mehr anzeigen", "zurück zur",
+)
+
+MAX_DETAILSEITEN_JE_QUELLE = int(os.environ.get("MAX_DETAILSEITEN", "4"))
+
+
+def _ist_meldungslink(text: str, ziel: str, basis: str) -> bool:
+    """Entscheidet, ob ein Link auf eine Einzelmeldung zeigt. Heuristisch,
+    aber bewusst konservativ: lieber eine Meldung verpassen als die
+    Rubrik 'Datenschutz' in den Kontext holen."""
+    text = (text or "").strip()
+    if len(text) < 30:            # Überschriften sind lang, Navigation ist kurz
+        return False
+    if any(w in text.lower() for w in LINK_STOPPWOERTER):
+        return False
+
+    ziel_teile, basis_teile = urlparse(ziel), urlparse(basis)
+    if ziel_teile.scheme not in ("http", "https"):
+        return False
+    if ziel_teile.netloc != basis_teile.netloc:
+        return False              # nur dieselbe Behörde/Redaktion
+    if ziel.rstrip("/") == basis.rstrip("/"):
+        return False
+    if re.search(r'\.(pdf|zip|docx?|xlsx?|jpe?g|png|mp4)(\?|$)', ziel, re.IGNORECASE):
+        return False              # Binärdateien kann BeautifulSoup nicht lesen
+    return True
+
+
+def folge_detailseiten(collected: dict) -> int:
+    """Lädt zu jeder Übersichtsseite die verlinkten Einzelmeldungen nach.
+
+    DAS ist der eigentliche Hebel gegen den dünnen Informationsgehalt.
+    Bisher stand im Kontext nur die Pressemitteilungs-LISTE des BAG oder
+    des BMF: Datum plus Überschrift, nach wenigen tausend Zeichen
+    abgeschnitten. Daraus kann kein Modell schreiben, was ein Urteil
+    entschieden hat oder was ein BMF-Schreiben anordnet - es kann die
+    Überschrift nur umformulieren, und genau so las sich der Newsletter.
+
+    Die nachgeladenen Seiten laufen durch dieselbe fetch_and_extract()
+    und unterliegen damit automatisch demselben Grounding-Mechanismus
+    wie alle anderen Quellen."""
+    bekannte = {e["url"] for entries in collected.values() for e in entries}
+    nachgeladen = 0
+
+    for category, entries in list(collected.items()):
+        for eintrag in list(entries):
+            if eintrag.get("status") != "ok" or not eintrag.get("links"):
+                continue
+            if eintrag.get("ist_detailseite"):
+                continue           # nicht rekursiv weiterlaufen
+
+            gefunden = 0
+            for text, ziel in eintrag["links"]:
+                if gefunden >= MAX_DETAILSEITEN_JE_QUELLE:
+                    break
+                if ziel in bekannte:
+                    continue
+                if not _ist_meldungslink(text, ziel, eintrag["url"]):
+                    continue
+
+                detail = fetch_and_extract(ziel, max_chars=7000)
+                bekannte.add(ziel)
+                if detail["status"] != "ok" or len(detail["text"]) < 400:
+                    continue
+
+                collected[category].append({
+                    "name": f"{eintrag['name']} → {text[:70]}",
+                    "url": ziel,
+                    "format": "Einzelmeldung",
+                    "access_hint": f"Von {eintrag['name']} verlinkte Einzelmeldung",
+                    "ist_detailseite": True,
+                    **detail,
+                })
+                gefunden += 1
+                nachgeladen += 1
+
+            if gefunden:
+                logger.info(f"[{category}] {eintrag['name']}: {gefunden} Einzelmeldung(en) nachgeladen.")
+
+    logger.info(f"Detailseiten insgesamt nachgeladen: {nachgeladen}")
+    return nachgeladen
+
+
 def collect_all_sources() -> dict:
     """Ruft alle konfigurierten Quellen ab. Gibt strukturierte Ergebnisse
     inkl. Metadaten (Format, Zugriffsbeschreibung) zurück. Fehlgeschlagene
@@ -189,10 +286,11 @@ def collect_all_sources() -> dict:
     for category, entries in SOURCES.items():
         collected[category] = []
         for name, url, fmt, access_hint in entries:
-            fetch_result = fetch_and_extract(url)
+            fetch_result = fetch_and_extract(url, mit_links=True)
             entry = {
                 "name": name, "url": url, "format": fmt,
-                "access_hint": access_hint, **fetch_result,
+                "access_hint": access_hint, "ist_detailseite": False,
+                **fetch_result,
             }
             status_note = "✅" if entry["status"] == "ok" else f"❌ {entry['error']}"
             logger.info(f"[{category}] {name}: {status_note}")
@@ -200,7 +298,7 @@ def collect_all_sources() -> dict:
     return collected
 
 
-def collect_search_based_sources(collected: dict) -> None:
+def collect_search_based_sources(collected: dict, laufende_themen: list | None = None) -> None:
     """Ergänzt `collected` (in-place) um Quellen, die per echter Web-Suche
     (Firecrawl) gefunden wurden - schließt die Lücke zu den festen
     SOURCES-URLs, die nur Behörden-Übersichtsseiten abdecken und daher
@@ -210,14 +308,27 @@ def collect_search_based_sources(collected: dict) -> None:
     festen Quellen - unterliegt also automatisch demselben Grounding-
     Mechanismus, keine Sonderbehandlung nötig.
 
-    Bereits über die festen SOURCES abgedeckte URLs werden übersprungen
-    (keine doppelte Quelle im Kontext). Scheitert die Suche komplett
-    (kein API-Key, Netzwerkproblem), passiert einfach nichts - das
-    Briefing läuft dann nur mit den festen Quellen weiter."""
+    Mit `laufende_themen` wird zusätzlich gezielt nach den Dauerthemen
+    des Themenradars gesucht, und zwar OHNE die Ein-Monats-Schranke der
+    normalen Suche: ein Thema, zu dem es vier Wochen lang nichts Neues
+    gab, wäre sonst unauffindbar, obwohl sein Stichtag näher rückt.
+
+    Bereits über die festen SOURCES abgedeckte URLs werden übersprungen.
+    Scheitert die Suche komplett (kein API-Key, Netzwerkproblem),
+    passiert einfach nichts - das Briefing läuft dann nur mit den festen
+    Quellen weiter."""
     known_urls = {
         e["url"] for entries in collected.values() for e in entries
     }
+
     urls_per_category = web_search_sources.find_urls_per_category()
+
+    if laufende_themen:
+        namen = [t["anzeige"] for t in laufende_themen]
+        treffer = web_search_sources.find_urls_fuer_themen(namen)
+        if treffer:
+            urls_per_category["Hot Topics"] = treffer
+
     for category, url_tuples in urls_per_category.items():
         for title, url in url_tuples:
             if url in known_urls:
@@ -228,11 +339,15 @@ def collect_search_based_sources(collected: dict) -> None:
                 "url": url,
                 "format": "Web-Suche (Firecrawl)",
                 "access_hint": "Per Web-Suche gefunden, nicht aus fester Quellenliste",
+                "ist_detailseite": True,   # inhaltlich eine Einzelmeldung
                 **fetch_result,
             }
             status_note = "✅" if entry["status"] == "ok" else f"❌ {entry['error']}"
             logger.info(f"[{category}, Web-Suche] {title[:60]}: {status_note}")
-            collected.setdefault(category, []).append(entry)
+            # Treffer zu Dauerthemen bekommen keinen eigenen Abschnitt -
+            # sie gehören inhaltlich zu den laufenden Verfahren.
+            ziel = "Gesetzgebungsverfahren" if category == "Hot Topics" else category
+            collected.setdefault(ziel, []).append(entry)
             known_urls.add(url)
 
 
@@ -244,8 +359,7 @@ def collect_search_based_sources(collected: dict) -> None:
 # (vdnewsletteranalyse@gmail.com), gefiltert auf HR-Relevanz per
 # Keyword-Vorfilter (spart LLM-Kosten - nicht jede Mail muss teuer
 # klassifiziert werden). Die gefundenen Mails durchlaufen danach
-# DENSELBEN Grounding-Prozess wie alle anderen Quellen (Anti-
-# Halluzinations-Regeln, URL-/Namens-Validierung) - anders als im
+# DENSELBEN Grounding-Prozess wie alle anderen Quellen - anders als im
 # einfacheren Newsletter-Analyse-Repo, das ungeprüft direkt ans LLM geht.
 #
 # Scheitert dieser Schritt komplett (z.B. Gmail-Auth-Problem), ist das
@@ -324,7 +438,8 @@ def fetch_hr_newsletter_sources(days_back: int = NEWSLETTER_DAYS_BACK) -> list[d
         logger.warning(f"Newsletter-Postfach nicht erreichbar (Auth-Problem?): {exc}")
         return []
 
-    since = (datetime.datetime.utcnow() - datetime.timedelta(days=days_back)).strftime("%Y/%m/%d")
+    since = (datetime.datetime.now(datetime.timezone.utc)
+             - datetime.timedelta(days=days_back)).strftime("%Y/%m/%d")
     try:
         result = service.users().messages().list(
             userId="me", q=f"after:{since}", maxResults=200
@@ -365,10 +480,12 @@ def fetch_hr_newsletter_sources(days_back: int = NEWSLETTER_DAYS_BACK) -> list[d
             "format": "Newsletter-Email",
             "access_hint": f"Betreff: {subject[:100]}",
             "status": "ok",
-            "text": f"Betreff: {subject}\n\n{body[:3000]}",
+            "text": f"Betreff: {subject}\n\n{body[:5000]}",
             "http_status": 200,
             "title": subject,
             "error": None,
+            "links": [],
+            "ist_detailseite": True,
             "fetched_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         })
 
@@ -380,42 +497,28 @@ def fetch_hr_newsletter_sources(days_back: int = NEWSLETTER_DAYS_BACK) -> list[d
 
 
 # ---------------------------------------------------------------------------
-# Schritt 2: LLM-Aufruf - NUR mit abgerufenem Text als Kontext
+# Schritt 2: LLM-Aufrufe
 # ---------------------------------------------------------------------------
 
-def build_context_block(collected: dict) -> str:
-    """Baut den Kontext-Block für den Prompt - nur erfolgreich abgerufene
-    Quellen, mit klarer URL-Zuordnung pro Absatz."""
-    blocks = []
-    for category, entries in collected.items():
-        ok_entries = [e for e in entries if e["status"] == "ok" and e["text"]]
-        if not ok_entries:
-            continue
-        blocks.append(f"\n=== KATEGORIE: {category} ===\n")
-        for e in ok_entries:
-            blocks.append(
-                f"--- QUELLE: {e['name']} | URL: {e['url']} | "
-                f"Format: {e['format']} ---\n{e['text'][:3000]}\n"
-            )
-    return "\n".join(blocks)
-
-
 def looks_garbled(text: str) -> str | None:
-    """Erkennt typische Ausfallmuster kleiner/schlecht geeigneter Modelle.
-    Identisch zur Logik im KI-Briefing (ki_briefing.py) - jede Regel für
-    sich reicht, um die Ausgabe zu verwerfen und das nächste Modell zu
-    versuchen."""
+    """Erkennt typische Ausfallmuster kleiner/schlecht geeigneter Modelle
+    in FLIESSTEXT-Antworten (Executive Summary).
+
+    Für die JSON-Antworten der Kategorie-Extraktion gilt stattdessen
+    meldungen.pruefe_json_antwort - dort wären die früheren Prüfungen auf
+    '<h2' oder 'Quelle:' sinnlos, weil das HTML jetzt in render.py
+    entsteht und gar nicht mehr vom Modell kommt."""
 
     # 1) Fremde Schriftsysteme mitten im deutschen Text
     unexpected_scripts = re.findall(
-        r'[\u0E00-\u0E7F'    # Thai
-        r'\u4E00-\u9FFF'     # CJK (Chinesisch)
-        r'\u3040-\u30FF'     # Hiragana/Katakana (Japanisch)
-        r'\uAC00-\uD7AF'     # Hangul (Koreanisch)
-        r'\u0900-\u097F'     # Devanagari (Hindi)
-        r'\u0600-\u06FF'     # Arabisch
-        r'\u0590-\u05FF'     # Hebräisch
-        r'\u0400-\u04FF'     # Kyrillisch
+        r'[฀-๿'    # Thai
+        r'一-鿿'     # CJK (Chinesisch)
+        r'぀-ヿ'     # Hiragana/Katakana (Japanisch)
+        r'가-힯'     # Hangul (Koreanisch)
+        r'ऀ-ॿ'     # Devanagari (Hindi)
+        r'؀-ۿ'     # Arabisch
+        r'֐-׿'     # Hebräisch
+        r'Ѐ-ӿ'     # Kyrillisch
         r']', text
     )
     if unexpected_scripts:
@@ -425,44 +528,25 @@ def looks_garbled(text: str) -> str | None:
     # 2) Durchgesickerte interne Platzhalter-/Steuer-Token, z.B. <TASKBODY>
     leaked_tokens = re.findall(r'<\s*[A-Z_]{3,}\s*>', text)
     if leaked_tokens:
-        return f"Durchgesickerte Platzhalter-Token gefunden ({leaked_tokens[:3]}) - Modell hat eigenes Prompt-Format nicht sauber ausgefüllt"
+        return f"Durchgesickerte Platzhalter-Token gefunden ({leaked_tokens[:3]})"
 
-    # 2b) Liegengebliebene eckige Klammern im sichtbaren Text - meist ein
-    # Zeichen dafür, dass eine Platzhalter-/Optional-Markierung aus der
-    # Vorlage (z.B. "[Aktenzeichen]" oder "[... falls vorhanden]") wörtlich
-    # übernommen statt ausgefüllt/entfernt wurde. Eckige Klammern kommen in
-    # deutschen Rechtstexten praktisch nie im Fließtext vor, daher niedriges
-    # Fehlalarm-Risiko.
-    plain_for_brackets = re.sub(r'<[^>]+>', ' ', text)
-    if re.search(r'[\[\]]', plain_for_brackets):
-        return "Eckige Klammern im Fließtext gefunden - vermutlich ein nicht ersetzter Platzhalter aus der Vorlage"
+    # 3) Liegengebliebene eckige Klammern im sichtbaren Text - meist ein
+    # nicht ersetzter Platzhalter aus einer Vorlage. Eckige Klammern
+    # kommen in deutschen Rechtstexten praktisch nie im Fließtext vor,
+    # daher niedriges Fehlalarm-Risiko.
+    if re.search(r'[\[\]]', re.sub(r'<[^>]+>', ' ', text)):
+        return "Eckige Klammern im Fließtext gefunden - vermutlich ein nicht ersetzter Platzhalter"
 
-    # 2c) Kaputte HTML-Tags: doppeltes/verschachteltes style- oder
-    # href-Attribut innerhalb eines einzelnen Tags (z.B. Modell hat beim
-    # Kopieren des Templates ein Attribut versehentlich dupliziert).
-    for tag_match in re.finditer(r'<[a-zA-Z]+\s[^>]*>', text):
-        tag_content = tag_match.group(0)
-        if tag_content.count('style="') > 1 or tag_content.count('href="') > 1:
-            return f"Kaputtes HTML-Tag mit doppeltem Attribut gefunden: {tag_content[:100]!r}"
-
-    # 2d) Durchgesickerte Markup-Bruchstücke IM sichtbaren Text (nicht in
-    # einem Tag) - z.B. 'Urteile;">Urteile' in einer Tabellenzelle. Nach
-    # Entfernen aller echten Tags dürfen keine Reste wie 'style="' oder
-    # ein einsames '">' mehr übrig sein - normaler deutscher Fließtext
-    # enthält diese Zeichenfolgen praktisch nie.
-    if 'style="' in plain_for_brackets or re.search(r'"\s*>', plain_for_brackets):
-        return "Durchgesickerte HTML-Markup-Reste im sichtbaren Text gefunden - vermutlich kaputte Tag-Struktur"
-
-    # 3) Echte Sprach-Prüfung, satzweise statt dokumentweise (siehe Lesson
-    #    Learned #8 - vermeidet, dass gemischtsprachige Ausgaben durchrutschen)
+    # 4) Echte Sprach-Prüfung, satzweise statt dokumentweise (siehe Lesson
+    #    Learned #8 - vermeidet, dass gemischtsprachige Ausgaben
+    #    durchrutschen)
     plain_text = re.sub(r'<[^>]+>', ' ', text)
     plain_text = re.sub(r'\s+', ' ', plain_text).strip()
     sentences = re.split(r'(?<=[.!?])\s+', plain_text)
     substantial_sentences = [s for s in sentences if len(s) >= 40]
 
     if len(substantial_sentences) >= 4:
-        non_german_count = 0
-        checked_count = 0
+        non_german_count = checked_count = 0
         for sentence in substantial_sentences:
             try:
                 if langdetect.detect(sentence) != "de":
@@ -483,129 +567,19 @@ def looks_garbled(text: str) -> str | None:
         except langdetect.lang_detect_exception.LangDetectException:
             return "Sprache konnte nicht erkannt werden (evtl. zu wenig zusammenhängender Text)"
 
-    # 4) Struktur-Check: erwartete Bausteine müssen mindestens einmal vorkommen
-    if "Quelle" not in text:
-        return "Kein einziges 'Quelle:' im Text gefunden - Format-Vorgabe wurde nicht befolgt"
-    if "<h2" not in text.lower():
-        return "Keine Kategorie-Überschriften (h2) gefunden - Struktur fehlt komplett"
-
-    if len(text) < 500:
-        return "Antwort verdächtig kurz für ein vollständiges Briefing"
-
     return None
 
 
-def _normalize_for_comparison(s: str) -> str:
-    """Reduziert einen String auf Kleinbuchstaben+Ziffern, damit
-    typografische Varianten beim Vergleich nicht fälschlich als
-    'unbekannt' gelten."""
-    return re.sub(r'[^a-z0-9]', '', s.lower())
-
-
-def _significant_tokens(name: str) -> list[str]:
-    """Zerlegt einen Quellennamen in bedeutungstragende Wort-Tokens.
-    'Bundesarbeitsgericht (BAG)' -> ['bundesarbeitsgericht', 'bag'].
-
-    Zwei Ausschnitte werden kombiniert:
-    - Wörter mit mind. 4 Zeichen (allgemeine Regel, vermeidet Fehltreffer
-      durch triviale Kurzwörter).
-    - Klammer-Kürzel wie '(BAG)', '(BFH)', '(BSG)' werden UNABHÄNGIG von
-      der Länge übernommen (mind. 2 Zeichen), weil im deutschen Arbeits-/
-      Steuer-/Sozialrecht 3-Buchstaben-Gerichtskürzel (BAG, BFH, BSG) der
-      absolute Normalfall für Quellenangaben sind - eine reine 4-Zeichen-
-      Grenze würde genau diese korrekten Kurzzitate fälschlich als
-      'verdächtig' einstufen."""
-    tokens = re.split(r'[^a-z0-9]+', name.lower())
-    long_tokens = [t for t in tokens if len(t) >= 4]
-
-    bracket_matches = re.findall(r'\(([^)]+)\)', name)
-    bracket_tokens = [
-        t.lower() for t in bracket_matches
-        if len(t) >= 2 and re.fullmatch(r'[A-Za-zÄÖÜäöü]+', t)
-    ]
-
-    return long_tokens + bracket_tokens
-
-
-def validate_source_names(html: str, collected: dict) -> list[str]:
-    """Prüft, ob jede 'Quelle:'-Angabe im Report zu einem tatsächlich
-    konfigurierten Quellennamen passt (Wort-Ebene statt Komplett-Name -
-    siehe Lesson Learned #9: Modelle zitieren Quellen oft verkürzt,
-    z.B. 'BAG' statt 'Bundesarbeitsgericht (BAG)' - das ist korrekt und
-    darf keinen Fehlalarm auslösen).
-
-    Der Name steht im HTML-Template üblicherweise INNERHALB eines
-    unmittelbar folgenden <a>-Links ('Quelle: <a href="...">BAG</a>'),
-    nicht als Klartext davor. Deshalb zwei Varianten: zuerst versuchen,
-    den Linktext zu erfassen; nur falls kein Link folgt, den Klartext
-    direkt nach 'Quelle:' nehmen."""
-    known_tokens_per_name = [
-        _significant_tokens(e["name"])
-        for entries in collected.values() for e in entries
-        if e["status"] == "ok"
-    ]
-    suspicious = []
-    pattern = r'Quelle:\s*(?:<a[^>]*>([^<]{1,80})</a>|([^<\n]{1,80}))'
-    for match in re.finditer(pattern, html):
-        cited = (match.group(1) or match.group(2) or "").strip()
-        if not cited:
-            continue  # nichts Zitierfähiges gefunden - kein Fehlalarm
-        cited_normalized = _normalize_for_comparison(cited)
-        found = any(
-            any(token in cited_normalized for token in tokens)
-            for tokens in known_tokens_per_name if tokens
-        )
-        if not found:
-            suspicious.append(cited)
-    return suspicious
-
-
-def validate_statistics(html: str, collected: dict) -> list[str]:
-    """Prüft jede Prozent-/Kennzahl-Angabe im Report gegen die tatsächlich
-    abgerufenen Rohtexte. Fängt das Muster ab: eine plausibel klingende,
-    aber erfundene Zahl (z.B. ein Frauenanteil-Prozentwert), die in der
-    Executive Summary auftaucht, obwohl sie in keiner der abgerufenen
-    Quellen tatsächlich vorkommt - und die die meldungsbezogene
-    Quellenprüfung (validate_source_names) nicht abdeckt, weil die
-    Summary keine eigene Quellenangabe hat.
-
-    Prüft nur die Zahl selbst (z.B. '52,7'), nicht den ganzen Satz - das
-    reicht, weil eine echte Zahl aus einer Quelle dort auch als
-    Ziffernfolge auftauchen muss; eine erfundene Zahl taucht nirgends auf.
-    Englische Quellen schreiben Dezimalzahlen mit Punkt ('52.7'), der
-    deutsche Report korrekt mit Komma ('52,7') - beide Schreibweisen
-    gegen den Quelltext prüfen, bevor als unbelegt gilt."""
-    all_source_text = " ".join(
-        e.get("text", "") for entries in collected.values() for e in entries
-        if e["status"] == "ok"
-    )
-    plain_html = re.sub(r'<[^>]+>', ' ', html)
-
-    numbers = re.findall(r'\d+(?:[.,]\d+)?\s?%', plain_html)
-    suspicious = []
-    for number in set(numbers):
-        digits_only = re.sub(r'[^\d.,]', '', number)
-        variant_a = digits_only.replace(",", ".")
-        variant_b = digits_only.replace(".", ",")
-        if variant_a not in all_source_text and variant_b not in all_source_text:
-            suspicious.append(number)
-    if suspicious:
-        logger.warning(f"Prozentangaben ohne Beleg in den Quellen gefunden: {suspicious}")
-    return sorted(suspicious)
-
-
-def validate_output_urls(html: str, collected: dict) -> list[str]:
-    """Extrahiert alle URLs aus der LLM-Antwort und prüft sie gegen die
-    Liste tatsächlich abgerufener Quellen. Gibt eine Liste unbekannter
-    (potenziell erfundener) URLs zurück."""
-    known_urls = {
-        e["url"] for entries in collected.values() for e in entries
-    }
-    found_urls = set(re.findall(r'href=[\'"]?(https?://[^\'" >]+)', html))
-    unknown = sorted(u for u in found_urls if u not in known_urls)
-    if unknown:
-        logger.warning(f"{len(unknown)} unbekannte URL(s) in der LLM-Antwort gefunden: {unknown}")
-    return unknown
+# Mindest-Kontextfenster für ein zugelassenes Modell.
+#
+# Hier stand vorher 8.000 Token. Ein Lauf sammelt gut 40 Quellen; der
+# frühere Sammel-Prompt (alle Kategorien plus HTML-Gerüst in einem Zug)
+# kam damit auf rund 120.000 Zeichen ≈ 38.000 Token. Ein Modell mit
+# 8.000 Token Kontext sieht davon etwa ein Fünftel - den Anfang - und
+# schneidet den Rest lautlos ab. Genau deshalb stand bei der zuletzt
+# einsortierten Kategorie (HR-Digitalisierung) Woche für Woche "Keine
+# belastbare neue Entwicklung": ihre Quellen hat das Modell nie gesehen.
+MIN_CONTEXT_LENGTH = int(os.environ.get("MIN_CONTEXT_LENGTH", "32000"))
 
 
 def get_free_models(headers: dict) -> list[str]:
@@ -621,6 +595,7 @@ def get_free_models(headers: dict) -> list[str]:
         "asr", "tts", "ocr",
     ]
     fallback_static = [
+        "openai/gpt-oss-120b:free",
         "openai/gpt-oss-20b:free",
         "meta-llama/llama-3.3-70b-instruct:free",
     ]
@@ -638,15 +613,26 @@ def get_free_models(headers: dict) -> list[str]:
         matches = re.findall(r'(\d+(?:\.\d+)?)b(?![a-z])', model_id.lower())
         return max((float(n) for n in matches), default=0.0)
 
-    free_models = [
-        m for m in all_models
-        if m.get("pricing", {}).get("prompt") == "0"
-        and m.get("pricing", {}).get("completion") == "0"
-        and m.get("id", "").endswith(":free")
-        and m.get("context_length", 0) >= 8000
-        and not any(kw in m.get("id", "").lower() for kw in exclude_keywords)
-        and estimated_param_billions(m.get("id", "")) <= 150
-    ]
+    def passt(m: dict, mindest_kontext: int) -> bool:
+        return (
+            m.get("pricing", {}).get("prompt") == "0"
+            and m.get("pricing", {}).get("completion") == "0"
+            and m.get("id", "").endswith(":free")
+            and m.get("context_length", 0) >= mindest_kontext
+            and not any(kw in m.get("id", "").lower() for kw in exclude_keywords)
+            and estimated_param_billions(m.get("id", "")) <= 150
+        )
+
+    free_models = [m for m in all_models if passt(m, MIN_CONTEXT_LENGTH)]
+    if not free_models:
+        # Lieber ein kleineres Fenster als gar kein Modell - der
+        # Kategorie-Prompt wird dann eben beschnitten, aber der Lauf
+        # bricht nicht ab.
+        logger.warning(
+            f"Kein kostenloses Modell mit mindestens {MIN_CONTEXT_LENGTH} Token "
+            "Kontext gefunden - weiche auf 16.000 aus."
+        )
+        free_models = [m for m in all_models if passt(m, 16000)]
     if not free_models:
         logger.warning("Kein passendes kostenloses Modell im Katalog gefunden - nutze statische Notliste.")
         return fallback_static
@@ -662,7 +648,7 @@ def get_free_models(headers: dict) -> list[str]:
 
     free_models.sort(key=sort_key)
     ids = [m["id"] for m in free_models][:6]
-    logger.info(f"Aktuell verfügbare kostenlose Modelle (Top 6): {ids}")
+    logger.info(f"Kostenlose Modelle mit ausreichendem Kontext (Top 6): {ids}")
     return ids
 
 
@@ -696,16 +682,33 @@ def _post_with_hard_timeout(url: str, headers: dict, payload: dict, hard_timeout
     return result["resp"]
 
 
-def call_openrouter(prompt: str) -> str:
+# Der Modellkatalog wird einmal je Lauf geholt, nicht je Kategorie -
+# sonst kostet die neue Aufteilung acht zusätzliche Katalogabrufe.
+_MODELL_CACHE: list[str] = []
+
+
+def call_openrouter(prompt: str, validator=None) -> str:
+    """Schickt einen Prompt an das erste kostenlose Modell, das eine
+    brauchbare Antwort liefert.
+
+    `validator(text) -> Grund|None` prüft die Ausgabe. Schlägt sie fehl,
+    wird das nächste Modell versucht. Ohne Angabe gilt looks_garbled()
+    (Fließtext); die Kategorie-Extraktion reicht ihre eigene
+    JSON-Prüfung herein."""
+    global _MODELL_CACHE
+
+    validator = validator or looks_garbled
     api_key = os.environ["OPENROUTER_API_KEY"]
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "HTTP-Referer": "https://github.com/",
     }
-    models = get_free_models(headers)
+    if not _MODELL_CACHE:
+        _MODELL_CACHE = get_free_models(headers)
+
     last_error = None
-    for model in models:
+    for model in _MODELL_CACHE:
         logger.info(f"Versuche Modell: {model}")
         payload = {
             "model": model,
@@ -755,187 +758,108 @@ def call_openrouter(prompt: str) -> str:
                 logger.warning(last_error)
                 break
 
-            garbled_reason = looks_garbled(content)
-            if garbled_reason:
-                last_error = f"{model}: Ausgabe verworfen - {garbled_reason}"
+            grund = validator(content)
+            if grund:
+                last_error = f"{model}: Ausgabe verworfen - {grund}"
                 logger.warning(last_error)
                 break
 
             logger.info(f"Modell {model} erfolgreich, Ausgabe-Qualitätscheck bestanden")
             return content
-    raise ValueError(f"Alle Modelle fehlgeschlagen oder lieferten fehlerhafte Ausgaben. Letzter Fehler: {last_error}")
-
-
-# ---------------------------------------------------------------------------
-# Schritt 3: Newsletter als HTML-Body generieren (Original-Template)
-# ---------------------------------------------------------------------------
-
-HTML_TEMPLATE_INSTRUCTIONS = """
-Übertrage die recherchierten Inhalte in EXAKT dieses HTML-Grundgerüst
-(Platzhalter in eckigen Klammern durch echte, recherchierte Inhalte
-ersetzen; Struktur, Tags und Inline-Styles unverändert lassen):
-
-<div style="border-bottom: 4px solid #1a3c6e; padding-bottom: 12px; margin-bottom: 8px;">
-  <h1 style="color: #1a3c6e; font-size: 24px; margin: 0;">HR-Wissen Weekly</h1>
-  <p style="color: #5a6b80; font-size: 15px; margin: 4px 0 0;">{week_label} &middot; Arbeitsrecht, Lohnsteuer &amp; Sozialversicherung</p>
-  <p style="color: #99a3b0; font-size: 12px; margin: 2px 0 0;">Stand: {today_str}</p>
-</div>
-
-<p style="font-size: 15px; margin: 18px 0 6px;"><strong>Guten Morgen,</strong></p>
-<p style="font-size: 15px; margin: 0 0 24px;">hier kommt das aktuelle HR-Wissen Weekly mit den wichtigsten Entwicklungen für HR, Payroll und Arbeitgeberpraxis.</p>
-
-<div style="background: #f0f4fb; border-left: 4px solid #1a3c6e; padding: 16px 20px; border-radius: 6px; margin-bottom: 28px;">
-  <p style="margin: 0 0 10px; font-weight: bold; color: #1a3c6e; font-size: 16px;">Executive Summary</p>
-  <p style="margin: 0 0 12px;">[3-5 kurze, vollständige Sätze]</p>
-  <p style="margin: 0 0 6px; font-weight: bold;">Was jetzt auf den Radar gehört:</p>
-  <ul style="margin: 0; padding-left: 20px;">
-    <li>[Punkt 1]</li>
-    <li>[Punkt 2]</li>
-    <li>[Punkt 3]</li>
-  </ul>
-</div>
-
-<h2 style="color: #1a3c6e; font-size: 18px; border-bottom: 1px solid #dde3ec; padding-bottom: 6px;">Kurzüberblick</h2>
-<table style="width: 100%; border-collapse: collapse; margin-bottom: 28px; font-size: 14px;">
-  <thead>
-    <tr style="background: #1a3c6e; color: #ffffff;">
-      <th style="padding: 9px 12px; text-align: left; border: 1px solid #1a3c6e;">Bereich</th>
-      <th style="padding: 9px 12px; text-align: left; border: 1px solid #1a3c6e;">Thema</th>
-      <th style="padding: 9px 12px; text-align: left; border: 1px solid #1a3c6e;">Relevanz</th>
-      <th style="padding: 9px 12px; text-align: left; border: 1px solid #1a3c6e;">Handlungsbedarf</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- max. 8-10 Zeilen, eine Zeile je ausgewählter Meldung; abwechselnd
-         style="background:#ffffff" und style="background:#f7f9fc" -->
-    <tr style="background: #ffffff;">
-      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[Bereich]</td>
-      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[Thema - kurzer Titel, kein ganzer Satz]</td>
-      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[NUR EINES: Hoch, Mittel oder Niedrig]</td>
-      <td style="padding: 8px 12px; border: 1px solid #dde3ec;">[kurze eigene Handlungsempfehlung, max. 12 Woerter]</td>
-    </tr>
-  </tbody>
-</table>
-
-<!-- Für JEDE der sechs Kategorien in dieser Reihenfolge: Gesetzesvorhaben,
-     BMF-Schreiben, Urteile, Verordnungen, Gesetzgebungsverfahren,
-     HR-Digitalisierung. Icon und Rahmenfarbe je Kategorie siehe unten. -->
-<h2 style="color: {cat_color}; font-size: 18px; border-bottom: 1px solid #dde3ec; padding-bottom: 6px;">{cat_icon} {cat_title}</h2>
-<div style="margin-bottom: 16px; padding: 14px 18px; background: {cat_bg}; border-left: 3px solid {cat_color}; border-radius: 6px;">
-  <p style="margin: 0 0 8px; font-weight: bold; color: {cat_color};">&#9658; [Überschrift der Meldung]</p>
-  <p style="margin: 0 0 8px;"><strong>Kurz erklärt:</strong> [2-4 kurze Sätze, bei Urteilen/BMF-Schreiben inkl. Datum und Aktenzeichen]</p>
-  <p style="margin: 0 0 4px; font-weight: bold;">Warum das wichtig ist:</p>
-  <ul style="margin: 0 0 10px; padding-left: 20px;">
-    <li>[konkrete HR/Payroll-Relevanz]</li>
-    <li>[konkreter Handlungsbedarf/Prüfpunkt]</li>
-  </ul>
-  <p style="margin: 0; font-size: 13px; color: #5a6b80;">📎 Quelle: <a href="[exakte URL aus dem Kontext]" style="color: {cat_color};">[Institution/Gericht]</a></p>
-  <!-- NUR falls im Kontext ein Aktenzeichen genannt ist: direkt nach dem
-       </a>-Tag ergänzen: " &middot; Az. [Aktenzeichen ohne Klammern]" -
-       sonst diesen Zusatz KOMPLETT weglassen, keine eckigen Klammern im
-       fertigen Text stehen lassen. -->
-</div>
-<!-- Falls keine belastbare Meldung für diese Kategorie im Kontext steht: -->
-<p style="margin: 0 0 28px; color: #777; font-style: italic;">Keine belastbare neue Entwicklung im Recherchezeitraum gefunden.</p>
-
-<h2 style="color: #1a3c6e; font-size: 18px; border-bottom: 1px solid #dde3ec; padding-bottom: 6px;">🔭 Ausblick</h2>
-<div style="margin-bottom: 24px; padding: 14px 18px; background: #f7f9fc; border-radius: 6px;">
-  <p style="margin: 0 0 6px;">Was steht nächste Woche an? Nur belastbar Belegbares aufnehmen:</p>
-  <ul style="margin: 0; padding-left: 20px;">
-    <li>[bekannte Sitzungen Bundesrat/Bundestag, falls im Kontext belegt]</li>
-    <li>[Fristenläufe/Urteile/Veröffentlichungen, falls im Kontext belegt]</li>
-  </ul>
-  <p style="margin: 8px 0 0; color: #777; font-style: italic;">Falls nichts Belastbares vorliegt: "Für die kommende Woche wurden keine belastbaren konkret terminierten HR-relevanten Ereignisse gefunden."</p>
-</div>
-"""
-
-
-def generate_briefing_html(collected: dict, week_label: str, today_str: str) -> str:
-    context = build_context_block(collected)
-    if not context.strip():
-        raise ValueError("Keine einzige Quelle erfolgreich abgerufen - Abbruch.")
-
-    category_style_hints = "\n".join(
-        f"- {cat}: Icon '{CATEGORY_ICON[cat]}', Rahmenfarbe {CATEGORY_COLOR[cat]}, "
-        f"Hintergrund {CATEGORY_BG[cat]}"
-        for cat in SOURCES
+    raise ValueError(
+        f"Alle Modelle fehlgeschlagen oder lieferten fehlerhafte Ausgaben. "
+        f"Letzter Fehler: {last_error}"
     )
 
-    prompt = f"""Du erstellst das "HR-Wissen Weekly" - ein wöchentliches Briefing zu
-aktuellen Entwicklungen in Arbeitsrecht, Lohnsteuer und Sozialversicherung
-für HR- und Payroll-Verantwortliche in DACH-Unternehmen, für: {week_label}.
 
-━━━ PFLICHTREGELN (keine Ausnahmen) ━━━
-REGEL 1 (Inhalt/Grounding): Verwende AUSSCHLIESSLICH Informationen, die
-wörtlich im folgenden Kontext stehen. Erfinde KEINE Aktenzeichen, Daten,
-Gerichtsbezeichnungen, Verfahrensstände oder Links. Wenn ein Thema im
-Kontext nicht ausreichend belegt ist, lass es weg statt zu raten. Lieber
-eine Kategorie mit "Keine belastbare neue Entwicklung im Recherchezeitraum
-gefunden." belegen als ungesicherte Informationen aufzunehmen.
+def _json_ausschneiden(text: str) -> str:
+    """Holt das JSON-Objekt aus einer Modellantwort, auch wenn ein Satz
+    oder eine Code-Fence drumherum steht."""
+    if not text:
+        return "{}"
+    fence = re.search(r'```(?:json)?\s*(.+?)```', text, re.DOTALL)
+    if fence:
+        text = fence.group(1)
+    start, ende = text.find("{"), text.rfind("}")
+    return text[start:ende + 1] if start != -1 and ende > start else text.strip()
 
-REGEL 2 (Sprache): Schreibe AUSSCHLIESSLICH auf Deutsch, in vollständigen,
-grammatikalisch korrekten Sätzen. Nur lateinische Schriftzeichen. Keine
-abgebrochenen Sätze - wenn ein Satz nicht sauber zu Ende geht, die ganze
-Meldung weglassen.
 
-REGEL 3 (Quellen): Für JEDE Meldung die exakte Quell-URL aus dem Kontext
-angeben (unverändert kopieren, keine Tippfehler, keine erfundenen URLs).
-Falls im Kontext ein Aktenzeichen genannt ist, ergänze direkt nach dem
-Quellenlink " &middot; Az. XXX" (XXX = das echte Aktenzeichen, OHNE
-eckige Klammern). Ist kein Aktenzeichen im Kontext vorhanden, lass
-diesen Zusatz KOMPLETT weg - schreibe niemals eckige Klammern wie "[...]"
-in den fertigen Text, das sind nur Platzhalter-Markierungen in dieser
-Anleitung, keine auszugebenden Zeichen.
+def generiere_executive_summary(alle_meldungen: list, week_label: str) -> dict:
+    """Erzeugt die Executive Summary AUS den bereits geprüften Meldungen.
 
-REGEL 4 (Auswahl): Wähle insgesamt 8-15 relevante Meldungen über alle
-Kategorien hinweg. Auswahlkriterien: Aktualität, konkrete Relevanz für
-HR/Arbeitsrecht/Lohnsteuer/Sozialversicherung/Payroll, belastbare Quelle,
-hoher Praxisnutzen für DACH-Unternehmen, keine Dubletten.
+    Der Kontext ist damit winzig und besteht ausschließlich aus Text, der
+    die Grounding-Prüfung schon bestanden hat. Die frühere REGEL 8
+    ("erfinde in der Summary keine Zahlen") war nur eine Bitte an das
+    Modell und hat genau deshalb nicht zuverlässig gewirkt; jetzt kann
+    die Summary gar nichts anderes sehen als die geprüften Meldungen."""
+    if not alle_meldungen:
+        return {"text": "", "radar": []}
 
-REGEL 5 (Ton/Format): Scanbar und professionell - klare Überschriften,
-kurze Absätze (max. 2-4 Sätze), keine Bleiwüste, keine werblichen
-Formulierungen, keine Emoji-Inflation, kein Hinweis auf einen Anhang.
+    zusammenfassung = "\n".join(
+        f"- [{m.get('kategorie')}] {m.get('ueberschrift')}: {m.get('kurz_erklaert')} "
+        f"(Relevanz {m.get('relevanz')}; Handlungsbedarf: {m.get('handlungsbedarf')})"
+        for m in alle_meldungen[:15]
+    )
 
-REGEL 6 (Format-Grenzen): Gib NUR den Inhalt zwischen (exklusive) den
-<body>-Tags zurück - kein <!DOCTYPE>, kein <html>, kein <head>, kein
-<body>-Tag selbst, kein Markdown, keine Code-Fences.
+    prompt = f"""Du schreibst die Executive Summary eines deutschen HR-Wochenbriefings
+für {week_label}.
 
-REGEL 7 (Kurzüberblick-Tabelle, strikt): In der Tabelle steht in der
-Spalte "Relevanz" AUSSCHLIESSLICH eines der drei Wörter "Hoch", "Mittel"
-oder "Niedrig" - NIE ein Satz, NIE ein Textausschnitt. "Handlungsbedarf"
-ist eine KURZE, eigene Formulierung (max. 12 Wörter), was HR konkret tun
-sollte - KEIN kopierter/paraphrasierter Satz aus dem Fließtext.
-Falsch (NICHT so machen): <td>Bei den Frauenanteilen in Aufsichtsräten
-und Vorständen zeichnet sich eine besorgniserregende Entwicklung ab.</td>
-Richtig: <td>Mittel</td> bzw. <td>Diversity-Kennzahlen im nächsten
-Reporting-Zyklus gegenprüfen</td>. Wenn du unsicher bist, ob eine Meldung
-"Hoch", "Mittel" oder "Niedrig" ist: nutze die Praxisrelevanz für
-HR/Payroll als Maßstab (Hoch = unmittelbarer Handlungsbedarf/Frist,
-Mittel = mittelfristig relevant, Niedrig = nur zur Information).
+Unten stehen die bereits ausgewählten und geprüften Meldungen dieser
+Ausgabe. Fasse sie zusammen.
 
-REGEL 8 (Executive Summary): Die Executive Summary darf NUR Sachverhalte
-zusammenfassen, die auch weiter unten in einer der Kategorie-Meldungen
-mit eigener Quellenangabe vorkommen. Erfinde in der Summary KEINE
-zusätzlichen Zahlen, Prozentangaben, Benchmark-Werte oder Statistiken,
-die nicht auch in mindestens einer Einzelmeldung stehen - auch nicht,
-wenn sie plausibel klingen oder dir aus anderem Wissen bekannt
-vorkommen. Im Zweifel: allgemeiner formulieren statt eine Zahl zu
-erfinden.
+REGELN:
+- Nur Sachverhalte aus der Liste. Keine zusätzlichen Zahlen, Prozentwerte,
+  Aktenzeichen oder Behauptungen - auch nicht, wenn sie plausibel klingen.
+- Deutsch, 3 bis 5 vollständige Sätze, sachlich, ohne Werbesprache.
+- Danach genau 3 kurze Stichpunkte "Was jetzt auf den Radar gehört".
+- Keine eckigen Klammern, kein HTML, kein Markdown.
 
-Kategorien und Styling (in dieser Reihenfolge, jede Kategorie als
-eigener H2-Block mit dem jeweiligen Icon und der jeweiligen Rahmen-/
-Hintergrundfarbe):
-{category_style_hints}
+Antworte als reines JSON, ohne Code-Fence:
+{{"text": "Die 3-5 Saetze.", "radar": ["Punkt 1", "Punkt 2", "Punkt 3"]}}
 
-KONTEXT (echt abgerufene Webseiten, einzige zulässige Faktenquelle):
-{context}
-
-Nutze exakt dieses HTML-Grundgerüst als Vorlage (Platzhalter in eckigen
-Klammern ersetzen, Tags/Inline-Styles unverändert lassen):
-{HTML_TEMPLATE_INSTRUCTIONS.format(week_label=week_label, today_str=today_str, cat_icon='[ICON]', cat_color='[FARBE]', cat_bg='[HINTERGRUND]', cat_title='[KATEGORIE-TITEL]')}
+MELDUNGEN DIESER AUSGABE:
+{zusammenfassung}
 """
 
-    return call_openrouter(prompt)
+    def pruefe(antwort: str) -> str | None:
+        try:
+            daten = json.loads(_json_ausschneiden(antwort))
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return "Keine auswertbare JSON-Antwort für die Executive Summary"
+        if not isinstance(daten, dict) or len(str(daten.get("text", ""))) < 80:
+            return "Executive Summary zu kurz oder ohne Textfeld"
+        return looks_garbled(str(daten.get("text", "")))
+
+    try:
+        antwort = call_openrouter(prompt, pruefe)
+        daten = json.loads(_json_ausschneiden(antwort))
+        return {
+            "text": str(daten.get("text", "")).strip(),
+            "radar": [str(p).strip() for p in daten.get("radar", []) if str(p).strip()][:3],
+        }
+    except Exception as exc:
+        # Die Summary ist Beiwerk - ihr Ausfall darf den Newsletter nicht
+        # verhindern, die Meldungen stehen ja bereits fest.
+        logger.warning(f"Executive Summary konnte nicht erzeugt werden: {exc}")
+        return {"text": "", "radar": []}
+
+
+def validate_output_urls(html_text: str, collected: dict) -> list[str]:
+    """Letzte Sicherung: extrahiert alle URLs aus dem fertigen Newsletter
+    und prüft sie gegen die Liste tatsächlich abgerufener Quellen.
+
+    Nach dem Umbau sollte hier nichts mehr auffallen - jede Meldung mit
+    unbekannter URL wird schon in meldungen.pruefe_meldung() verworfen.
+    Der Check bleibt trotzdem: er kostet nichts und deckt auf, falls das
+    Rendering doch einmal eine fremde URL einschleust."""
+    known_urls = {
+        e["url"] for entries in collected.values() for e in entries
+    }
+    found_urls = set(re.findall(r'href=[\'"]?(https?://[^\'" >]+)', html_text))
+    unknown = sorted(u for u in found_urls if u not in known_urls)
+    if unknown:
+        logger.warning(f"{len(unknown)} unbekannte URL(s) im fertigen Newsletter: {unknown}")
+    return unknown
 
 
 # ---------------------------------------------------------------------------
@@ -970,15 +894,35 @@ def send_email_gmail(to: str, subject: str, html_body: str) -> None:
 def run(week_label: str, subject: str):
     recipient = os.environ["REPORT_RECIPIENT_EMAIL"]
 
+    # --- Quellen -----------------------------------------------------------
     logger.info("Rufe alle HR-Quellen ab...")
     collected = collect_all_sources()
 
+    logger.info("Lade verlinkte Einzelmeldungen nach...")
+    folge_detailseiten(collected)
+
+    # Themenzustand VOR der Web-Suche laden, damit gezielt nach den
+    # laufenden Dauerthemen gesucht werden kann.
+    state = hot_topics.lade_state()
+    hot_topics.aktualisiere_aus_quellen(state, collected)
+    laufende_themen = hot_topics.aktive_themen(state)
+
     logger.info("Suche zusätzlich per Web-Suche nach aktuellen Fachbeiträgen...")
-    collect_search_based_sources(collected)
+    collect_search_based_sources(collected, laufende_themen)
 
     newsletter_sources = fetch_hr_newsletter_sources()
     if newsletter_sources:
         collected["Newsletter-Auswertung"] = newsletter_sources
+
+    # Zweiter Durchgang: die neu hinzugekommenen Quellen können Stichtage
+    # enthalten, die den Themenzustand präzisieren.
+    hot_topics.aktualisiere_aus_quellen(state, collected)
+    hot_topics.aufraeumen(state)
+    radar_themen = hot_topics.aktive_themen(state)
+    logger.info(
+        f"Themenradar: {len(radar_themen)} laufende(s) Thema/Themen - "
+        f"{[t['anzeige'] for t in radar_themen]}"
+    )
 
     ok_count = sum(1 for entries in collected.values() for e in entries if e["status"] == "ok")
     error_count = sum(1 for entries in collected.values() for e in entries if e["status"] != "ok")
@@ -989,10 +933,39 @@ def run(week_label: str, subject: str):
     safe_label = week_label.replace(" ", "_").replace("/", "-")
     output_path = os.path.join(output_dir, f"HR-Briefing_{safe_label}.html")
     now_str = datetime.datetime.now().strftime("%d.%m.%Y %H:%M")
-
     today_str = datetime.date.today().strftime("%d.%m.%Y")
+
+    # --- Inhalt ------------------------------------------------------------
     try:
-        body_html = generate_briefing_html(collected, week_label, today_str)
+        if ok_count == 0:
+            raise ValueError("Keine einzige Quelle erfolgreich abgerufen - Abbruch.")
+
+        meldungen_je_kategorie, beanstandungen = meldungen_modul.extrahiere_alle(
+            collected, BETRACHTUNGSZEITRAUM, call_openrouter
+        )
+        alle_meldungen = [
+            m for k in KATEGORIE_REIHENFOLGE
+            for m in meldungen_je_kategorie.get(k, [])
+        ]
+        if not alle_meldungen:
+            raise ValueError(
+                "Kein einziger Beitrag hat die Grounding-Prüfung bestanden - "
+                "es gibt nichts zu versenden."
+            )
+        logger.info(f"{len(alle_meldungen)} Meldung(en) insgesamt im Newsletter.")
+
+        summary = generiere_executive_summary(alle_meldungen, week_label)
+        summary["ausblick"] = render.baue_ausblick_punkte(radar_themen, alle_meldungen)
+
+        body_html = render.baue_body(
+            meldungen_je_kategorie=meldungen_je_kategorie,
+            kategorie_reihenfolge=KATEGORIE_REIHENFOLGE,
+            executive_summary=summary,
+            radar_themen=radar_themen,
+            week_label=week_label,
+            today_str=today_str,
+            schema=meldungen_modul.KATEGORIE_SCHEMA,
+        )
     except Exception as exc:
         # Selbst bei einem Totalausfall (z.B. ungültiger API-Key, alle
         # Modelle fehlgeschlagen) soll NICHT die gesamte Recherche
@@ -1021,40 +994,42 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(error_html)
         logger.info(f"Fehler-Diagnose gespeichert unter: {output_path}")
+        # Der Themenzustand wird trotzdem gesichert: die Quellen wurden ja
+        # abgerufen, und die darin gefundenen Stichtage sollen für den
+        # nächsten Lauf nicht verloren gehen.
+        hot_topics.speichere_state(state)
         raise  # Job soll weiterhin als fehlgeschlagen markiert werden
 
+    hot_topics.speichere_state(state)
+
+    # --- Prüfen und ausliefern --------------------------------------------
     unknown_urls = validate_output_urls(body_html, collected)
-    suspicious_names = validate_source_names(body_html, collected)
-    suspicious_stats = validate_statistics(body_html, collected)
 
-    warning_items = []
-    if unknown_urls:
-        warning_items.append(
-            "<strong>Unbekannte URLs</strong> (stammen nicht aus den abgerufenen "
-            f"Quellen): <ul>{''.join(f'<li>{u}</li>' for u in unknown_urls)}</ul>"
-        )
-    if suspicious_names:
-        warning_items.append(
-            "<strong>Verdächtige Quellenangaben</strong> (passen zu keinem "
-            f"konfigurierten Quellennamen): <ul>"
-            f"{''.join(f'<li>{n}</li>' for n in suspicious_names)}</ul>"
-        )
-    if suspicious_stats:
-        warning_items.append(
-            "<strong>Unbelegte Prozent-/Kennzahlen</strong> (tauchen im Report "
-            "auf, aber in keiner der abgerufenen Quellen - möglicherweise "
-            f"erfunden, z.B. in der Executive Summary): <ul>"
-            f"{''.join(f'<li>{s}</li>' for s in suspicious_stats)}</ul>"
-        )
+    for hinweis in beanstandungen:
+        logger.warning(f"Grounding: {hinweis}")
 
+    # Der frühere Warnbanner stand über JEDEM Newsletter und meldete
+    # überwiegend Fehlalarme (z.B. "LTO", das sehr wohl konfiguriert ist).
+    # Jetzt wird beanstandeter Inhalt gar nicht erst aufgenommen, und der
+    # Banner erscheint nur noch, wenn eine wirklich fremde URL im
+    # fertigen Dokument steht.
     warning_banner = ""
-    if warning_items:
+    if unknown_urls:
         warning_banner = (
             "<div style='background:#fff3cd;border:1px solid #ffc107;"
             "padding:12px;margin-bottom:16px;'>"
-            "⚠️ Automatischer Grounding-Check hat Auffälligkeiten gefunden - "
-            "bitte manuell prüfen, bevor der Report als verlässlich gilt:"
-            f"{''.join(warning_items)}</div>"
+            "⚠️ Im fertigen Newsletter stehen URLs, die nicht aus dem Abruf "
+            "stammen - bitte vor der Weitergabe prüfen:"
+            f"<ul>{''.join(f'<li>{u}</li>' for u in unknown_urls)}</ul></div>"
+        )
+
+    pruefnotiz = ""
+    if beanstandungen:
+        eintraege = "".join(f"<li>{b}</li>" for b in beanstandungen[:40])
+        pruefnotiz = (
+            f"<details><summary>{len(beanstandungen)} Angabe(n) von der "
+            f"Grounding-Prüfung entfernt oder beanstandet</summary>"
+            f"<ul>{eintraege}</ul></details>"
         )
 
     failed_sources_note = ""
@@ -1075,6 +1050,7 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
 <body style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 720px; margin: 0 auto; color: #222; line-height: 1.6; background: #ffffff;">
 {warning_banner}
 {body_html}
+{pruefnotiz}
 {failed_sources_note}
 <hr style="border: none; border-top: 1px solid #e5e9f0; margin: 28px 0 14px;">
 <p style="font-size: 12px; color: #99a3b0; margin: 0 0 8px;">Recherchiert mit KI-Unterstützung &nbsp;|&nbsp; Alle Angaben ohne Gewähr &nbsp;|&nbsp; Automatisch erstellt am {now_str} &middot; {ok_count} Quellen abgerufen, {error_count} fehlgeschlagen</p>
@@ -1095,8 +1071,7 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
         )
     except Exception as exc:
         # Nicht fatal - der Report liegt ja bereits lokal (siehe oben)
-        # und als Actions-Artifact vor, falls der OneDrive-Upload aus
-        # irgendeinem Grund (noch) nicht klappt.
+        # und als Actions-Artifact vor.
         logger.warning(f"OneDrive-Upload fehlgeschlagen: {exc}")
 
     try:

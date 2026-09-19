@@ -6,6 +6,12 @@ on:
 
   workflow_dispatch: {}
 
+# Der Lauf schreibt state/hot_topics.json zurück ins Repo - das ist das
+# Gedächtnis des Themenradars. Ohne Schreibrecht ginge der Verlauf nach
+# jedem Lauf verloren und jedes Dauerthema wäre wieder neu.
+permissions:
+  contents: write
+
 jobs:
   hr-briefing:
     name: Wochenbriefing
@@ -30,6 +36,26 @@ jobs:
           ONEDRIVE_FOLDER_PATH:   ${{ secrets.ONEDRIVE_FOLDER_PATH }}
           FIRECRAWL_API_KEY:      ${{ secrets.FIRECRAWL_API_KEY }}
         run: python hr_briefing.py --mode weekly
+
+      # Auch bei einem fehlgeschlagenen Lauf zurückschreiben: die Quellen
+      # wurden ja abgerufen, und die dort gefundenen Stichtage sollen für
+      # die nächste Woche nicht verloren gehen (hr_briefing.py sichert
+      # den Zustand deshalb auch im Fehlerfall).
+      - name: Themenradar zurückschreiben
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain state/)" ]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add state/
+            git commit -m "Themenradar nach Lauf vom $(date -u +%Y-%m-%d) fortgeschrieben"
+            # Zwischen Checkout und Push kann ein anderer Commit gelandet
+            # sein; rebase statt harter Push-Fehlschlag.
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "Themenradar unverändert - kein Commit nötig."
+          fi
 
       - name: Report als Artifact hochladen
         if: always()
