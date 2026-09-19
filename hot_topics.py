@@ -311,6 +311,26 @@ MAX_SATZLAENGE = 350
 BEGRIFF_FENSTER = 130
 
 
+def begriff_zulaessig(wort: str) -> bool:
+    """Ist dieses Wort als Themenname brauchbar?
+
+    Eigene Funktion, weil die Prüfung an ZWEI Stellen gebraucht wird:
+    beim Erkennen neuer Themen und beim Laden des gespeicherten
+    Zustands. Ohne die zweite Stelle wirkt eine verschärfte Regel nicht
+    rückwirkend - im Lauf vom 19.09. stand "Entsprechend" weiterhin im
+    Radar, obwohl die Adverb-Regel bereits aktiv war: Das Thema kam aus
+    dem Zustand des Vorlaufs und wurde nie wieder geprüft."""
+    schluessel = _norm(wort)
+    if len(schluessel) < 8 or schluessel in STOPPBEGRIFFE:
+        return False
+    unten = (wort or "").lower()
+    if unten.endswith(GATTUNGS_ENDUNGEN):
+        return False
+    if unten.endswith(ADVERB_ENDUNGEN) and not unten.endswith(RECHTSAKT_ENDUNGEN):
+        return False
+    return True
+
+
 def _finde_begriff(fenster: str) -> tuple[str, str] | None:
     """Sucht im Textfenster um ein Stichtagsdatum den Themenbegriff.
 
@@ -320,18 +340,10 @@ def _finde_begriff(fenster: str) -> tuple[str, str] | None:
     kandidaten = []
     for m in BEGRIFF_REGEX.finditer(fenster):
         wort = _grundform(m.group(1).rstrip("-"))
+        if not begriff_zulaessig(wort):
+            continue
         schluessel = _norm(wort)
-        if len(schluessel) < 8 or schluessel in STOPPBEGRIFFE:
-            continue
-
         unten = wort.lower()
-        if unten.endswith(GATTUNGS_ENDUNGEN):
-            continue
-        # Ein Rechtsakt darf auf eine Adverb-Endung enden ("Gesetz über
-        # das Verfahren ... -gemäß" kommt vor), ein Adverb nie auf eine
-        # Rechtsakt-Endung - deshalb erst die Rechtsakt-Prüfung.
-        if unten.endswith(ADVERB_ENDUNGEN) and not unten.endswith(RECHTSAKT_ENDUNGEN):
-            continue
         ist_rechtsakt = (
             unten.endswith(RECHTSAKT_ENDUNGEN)
             or re.fullmatch(r'[A-ZÄÖÜ][A-Za-zÄÖÜäöü]{2,}(?:G|VO|RL|StV)', wort) is not None
@@ -420,6 +432,29 @@ def finde_stichtage(text: str) -> list[dict]:
 # Zustand über Läufe hinweg
 # ---------------------------------------------------------------------------
 
+def _nachpruefen(state: dict) -> int:
+    """Wirft gespeicherte Themen weg, die nach den HEUTIGEN Regeln kein
+    Thema mehr wären.
+
+    Ohne diesen Schritt bleibt ein einmal aufgenommener Fehltreffer für
+    immer im Radar: Die Erkennungsregeln greifen nur bei neuen Funden,
+    der Zustand wird sonst unbesehen übernommen. Genau so überlebte
+    "Entsprechend" die Einführung der Adverb-Regel."""
+    raus = [
+        schluessel for schluessel, thema in state.get("themen", {}).items()
+        if not begriff_zulaessig(thema.get("anzeige") or schluessel)
+    ]
+    for schluessel in raus:
+        del state["themen"][schluessel]
+    if raus:
+        logger.info(
+            f"Hot-Topic-Verlauf: {len(raus)} gespeicherte(s) Thema/Themen "
+            f"entsprechen den aktuellen Regeln nicht mehr und wurden "
+            f"entfernt: {raus}"
+        )
+    return len(raus)
+
+
 def lade_state(pfad: str = STATE_PATH) -> dict:
     """Liest den fortgeschriebenen Themenzustand. Fehlt die Datei oder ist
     sie beschädigt, wird mit leerem Zustand weitergemacht - ein kaputter
@@ -434,6 +469,7 @@ def lade_state(pfad: str = STATE_PATH) -> dict:
                 "Format wird beim Speichern angehoben."
             )
         state.setdefault("themen", {})
+        _nachpruefen(state)
         return state
     except FileNotFoundError:
         logger.info(f"Kein Hot-Topic-Zustand unter {pfad} - starte mit leerem Verlauf.")
