@@ -8,7 +8,7 @@
       "beleg_quelle": "https://www.haufe.de/personal/arbeitsrecht/urteil-kuendigung-wegen-fuehrerscheinentzug_76_694732.html",
       "beleg_quelle_name": "Urteil: Kündigung wegen Führerscheinentzug | Personal",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
         "2026-09-19"
       ],
@@ -19,21 +19,38 @@
       "stichtag_art": "gilt ab",
       "zuletzt_gesehen": "2026-09-19"
     },
-    "entsprechend": {
-      "anzeige": "Entsprechend",
-      "beleg": "Entsprechend der gestaffelten Umsetzungsfristen, sollte zum 2. August 2026 das Kernstück des AI Acts, die umfangreichen Pflichten bei der Nutzung von Hochrisiko-KI, zur Anwendung kommen.",
-      "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
-      "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
+    "beschlossen": {
+      "anzeige": "Beschlossen",
+      "beleg": "Beschlossen; ab 27.09.2026 verbindlich anzuwenden",
+      "beleg_quelle": "https://intep.com/ratgeber/empco-richtlinie/",
+      "beleg_quelle_name": "EmpCo-Richtlinie: Pflichten & Umsetzung 2026",
       "erstmals_gesehen": "2026-09-19",
       "erwaehnungen": 1,
       "laeufe": [
         "2026-09-19"
       ],
       "quellen": [
-        "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/"
+        "https://intep.com/ratgeber/empco-richtlinie/"
       ],
-      "stichtag": "2026-08-02",
-      "stichtag_art": "Umsetzungsfrist",
+      "stichtag": "2026-09-27",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "empcorichtlinie": {
+      "anzeige": "EmpCo-Richtlinie",
+      "beleg": "Die EmpCo-Richtlinie ist beschlossen, in Kraft und ab dem 27. September 2026 verbindlich anzuwenden.",
+      "beleg_quelle": "https://intep.com/ratgeber/empco-richtlinie/",
+      "beleg_quelle_name": "EmpCo-Richtlinie: Pflichten & Umsetzung 2026",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://intep.com/ratgeber/empco-richtlinie/"
+      ],
+      "stichtag": "2026-09-27",
+      "stichtag_art": "Inkrafttreten",
       "zuletzt_gesehen": "2026-09-19"
     },
     "foederalismusreform": {
@@ -42,7 +59,7 @@
       "beleg_quelle": "https://www.bundesrat.de/",
       "beleg_quelle_name": "Bundesrat – Homepage",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 4,
+      "erwaehnungen": 6,
       "laeufe": [
         "2026-09-19"
       ],
@@ -59,7 +76,7 @@
       "beleg_quelle": "https://www.lohnsteuer-kompakt.de/steuerwissen/bafa-foerderkompass-2026-foerderprogramme-im-ueberblick/",
       "beleg_quelle_name": "BAFA Förderkompass 2026: Förderprogramme im Überblick",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
         "2026-09-19"
       ],
@@ -110,7 +127,7 @@
       "beleg_quelle": "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html",
       "beleg_quelle_name": "BMF – Schreiben Lohnsteuer/Allgemeines",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 4,
+      "erwaehnungen": 6,
       "laeufe": [
         "2026-09-19"
       ],
@@ -127,7 +144,7 @@
       "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
       "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
         "2026-09-19"
       ],
@@ -144,7 +161,7 @@
       "beleg_quelle": "https://www.husemannpartner.de/aktuelles/jahressteuergesetz-2026",
       "beleg_quelle_name": "Jahressteuergesetz 2026 - Husemann",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
         "2026-09-19"
       ],
@@ -161,7 +178,7 @@
       "beleg_quelle": "https://www.dhpg.de/de/newsroom/blog/jahressteuergesetz2026-kompakter-ueberblick-zu-den-zentralen-steueraenderungen",
       "beleg_quelle_name": "Jahressteuergesetz 2026: Kompakter Überblick zu den zentralen... - dhpg",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
         "2026-09-19"
       ],
@@ -178,7 +195,7 @@
       "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
       "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
         "2026-09-19"
       ],
@@ -206,13 +223,30 @@
       "stichtag_art": "Anwendung ab",
       "zuletzt_gesehen": "2026-09-19"
     },
+    "schutzniveau": {
+      "anzeige": "Schutzniveau",
+      "beleg": "Entsprechend der gestaffelten Umsetzungsfristen, sollte zum 2. August 2026 das Kernstück des AI Acts, die umfangreichen Pflichten bei der Nutzung von Hochrisiko-KI, zur Anwendung kommen.",
+      "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
+      "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/"
+      ],
+      "stichtag": "2026-08-02",
+      "stichtag_art": "Umsetzungsfrist",
+      "zuletzt_gesehen": "2026-09-19"
+    },
     "steuerpflichtige": {
       "anzeige": "Steuerpflichtige",
       "beleg": "Und die Übergangsfrist ist lang und wurde schließlich noch einmal gestreckt: Das Ganze soll erst ab 1. Januar 2030 gelten.",
       "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
       "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
         "2026-09-19"
       ],
@@ -229,7 +263,7 @@
       "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
       "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
         "2026-09-19"
       ],
@@ -263,7 +297,7 @@
       "beleg_quelle": "https://www.bundesrat.de/SharedDocs/termine/DE/presse/2026/20260923-va.html",
       "beleg_quelle_name": "Bundesrat – Homepage → Terminhinweis Vermittlungsausschuss tagt zur Schuldnerberatung",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 4,
+      "erwaehnungen": 6,
       "laeufe": [
         "2026-09-19"
       ],
@@ -288,23 +322,6 @@
         "https://www.secjur.com/blog/eu-ai-act"
       ],
       "stichtag": "2026-08-02",
-      "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-19"
-    },
-    "zuordnungen": {
-      "anzeige": "Zuordnungen",
-      "beleg": "Die Neuregelung soll erstmals auf Zuordnungen anzuwenden sein, die nach dem 31. Dezember 2026 dienst- oder arbeitsrechtlich festgelegt werden (§ 52 Abs. 16b EStG-E).",
-      "beleg_quelle": "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html",
-      "beleg_quelle_name": "Geplante lohnsteuerliche Änderungen laut Jahressteuergesetz 2026",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
-      "laeufe": [
-        "2026-09-19"
-      ],
-      "quellen": [
-        "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html"
-      ],
-      "stichtag": "2026-12-31",
       "stichtag_art": "Anwendung ab",
       "zuletzt_gesehen": "2026-09-19"
     }
