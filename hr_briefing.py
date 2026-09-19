@@ -683,8 +683,41 @@ def _post_with_hard_timeout(url: str, headers: dict, payload: dict, hard_timeout
 
 
 # Der Modellkatalog wird einmal je Lauf geholt, nicht je Kategorie -
-# sonst kostet die neue Aufteilung acht zusätzliche Katalogabrufe.
+# sonst kostet die Aufteilung in Kategorien acht zusätzliche
+# Katalogabrufe.
 _MODELL_CACHE: list[str] = []
+
+# Welches Modell zuletzt eine brauchbare Antwort geliefert hat, und wie
+# oft ein Modell in diesem Lauf schon versagt hat.
+#
+# Ohne dieses Gedächtnis läuft die Fallback-Kette bei JEDEM der acht
+# Aufrufe von vorn. Antwortet das erste Modell gerade mit 429, wird
+# achtmal dieselbe Wartezeit abgesessen, bevor achtmal dasselbe zweite
+# Modell übernimmt. Bei einem Aufruf je Ausgabe fiel das nicht auf.
+_BEWAEHRTES_MODELL: str | None = None
+_FEHLVERSUCHE: dict[str, int] = {}
+
+# Ab so vielen Fehlversuchen wird ein Modell für den Rest des Laufs
+# übersprungen. Ein Modell, das zweimal nicht lieferte, liefert
+# erfahrungsgemäß auch beim dritten Mal nicht - es kostet nur Zeit.
+MAX_FEHLVERSUCHE = 2
+
+# Hartes Timeout je Anfrage. Die Kategorie-Prompts sind deutlich kleiner
+# als der frühere Sammel-Prompt, brauchen also keine sechs Minuten.
+HARD_TIMEOUT = int(os.environ.get("LLM_TIMEOUT", "180"))
+
+
+def _modellreihenfolge() -> list[str]:
+    """Bewährtes Modell zuerst, ausgefallene ans Ende bzw. heraus."""
+    kandidaten = [
+        m for m in _MODELL_CACHE
+        if _FEHLVERSUCHE.get(m, 0) < MAX_FEHLVERSUCHE
+    ] or list(_MODELL_CACHE)   # lieber alle nochmal als gar keins
+
+    if _BEWAEHRTES_MODELL in kandidaten:
+        kandidaten.remove(_BEWAEHRTES_MODELL)
+        kandidaten.insert(0, _BEWAEHRTES_MODELL)
+    return kandidaten
 
 
 def call_openrouter(prompt: str, validator=None) -> str:
@@ -695,7 +728,7 @@ def call_openrouter(prompt: str, validator=None) -> str:
     wird das nächste Modell versucht. Ohne Angabe gilt looks_garbled()
     (Fließtext); die Kategorie-Extraktion reicht ihre eigene
     JSON-Prüfung herein."""
-    global _MODELL_CACHE
+    global _MODELL_CACHE, _BEWAEHRTES_MODELL
 
     validator = validator or looks_garbled
     api_key = os.environ["OPENROUTER_API_KEY"]
@@ -708,7 +741,7 @@ def call_openrouter(prompt: str, validator=None) -> str:
         _MODELL_CACHE = get_free_models(headers)
 
     last_error = None
-    for model in _MODELL_CACHE:
+    for model in _modellreihenfolge():
         logger.info(f"Versuche Modell: {model}")
         payload = {
             "model": model,
@@ -719,17 +752,26 @@ def call_openrouter(prompt: str, validator=None) -> str:
             try:
                 resp = _post_with_hard_timeout(
                     "https://openrouter.ai/api/v1/chat/completions",
-                    headers, payload, hard_timeout=360,
+                    headers, payload, hard_timeout=HARD_TIMEOUT,
                 )
             except requests.exceptions.RequestException as exc:
                 last_error = f"{model}: Verbindungsfehler/Timeout - {exc}"
                 logger.warning(last_error)
+                _FEHLVERSUCHE[model] = _FEHLVERSUCHE.get(model, 0) + 1
                 break
             if resp.status_code == 429:
-                wait = 30 * (attempt + 1)
-                logger.info(f"429 bei {model} - warte {wait}s")
-                time.sleep(wait)
-                continue
+                # Einmal kurz warten, dann weiterziehen. Lange Wartezeiten
+                # lohnen nicht mehr, seit pro Ausgabe mehrere Aufrufe
+                # laufen - ein anderes Modell ist schneller als die
+                # Geduld mit diesem.
+                _FEHLVERSUCHE[model] = _FEHLVERSUCHE.get(model, 0) + 1
+                if attempt == 0:
+                    logger.info(f"429 bei {model} - warte 20s")
+                    time.sleep(20)
+                    continue
+                last_error = f"{model}: dauerhaft 429 (Rate-Limit)"
+                logger.warning(last_error)
+                break
             if resp.status_code in (401, 403):
                 # Ungültiger/fehlender API-Key betrifft ALLE Modelle gleich -
                 # sinnlos, hier weitere Modelle durchzuprobieren.
@@ -741,6 +783,7 @@ def call_openrouter(prompt: str, validator=None) -> str:
             if resp.status_code in (400, 404, 500, 502, 503):
                 last_error = f"{model}: HTTP {resp.status_code} - {resp.text[:300]}"
                 logger.warning(f"Modell {model} fehlgeschlagen: {last_error}")
+                _FEHLVERSUCHE[model] = _FEHLVERSUCHE.get(model, 0) + 1
                 break
             resp.raise_for_status()
             try:
@@ -756,15 +799,18 @@ def call_openrouter(prompt: str, validator=None) -> str:
                     f"Rohtext-Anfang: {resp.text[:200]!r}"
                 )
                 logger.warning(last_error)
+                _FEHLVERSUCHE[model] = _FEHLVERSUCHE.get(model, 0) + 1
                 break
 
             grund = validator(content)
             if grund:
                 last_error = f"{model}: Ausgabe verworfen - {grund}"
                 logger.warning(last_error)
+                _FEHLVERSUCHE[model] = _FEHLVERSUCHE.get(model, 0) + 1
                 break
 
             logger.info(f"Modell {model} erfolgreich, Ausgabe-Qualitätscheck bestanden")
+            _BEWAEHRTES_MODELL = model
             return content
     raise ValueError(
         f"Alle Modelle fehlgeschlagen oder lieferten fehlerhafte Ausgaben. "
@@ -891,33 +937,64 @@ def send_email_gmail(to: str, subject: str, html_body: str) -> None:
 # Hauptablauf
 # ---------------------------------------------------------------------------
 
-def run(week_label: str, subject: str):
-    recipient = os.environ["REPORT_RECIPIENT_EMAIL"]
+def run(week_label: str, subject: str, testlauf: bool = False):
+    """Erzeugt das Briefing und versendet es.
+
+    Mit `testlauf=True` wird nur eine einzige Kategorie abgerufen, die
+    Web-Suche und das Newsletter-Postfach bleiben außen vor, und es wird
+    WEDER versendet NOCH nach OneDrive hochgeladen - das Ergebnis landet
+    nur in output/. Gedacht zum Prüfen von Änderungen: ein vollständiger
+    Lauf dauert eine halbe Stunde, was beim Entwickeln unbrauchbar ist.
+    Welche Kategorie geprüft wird, steuert TEST_KATEGORIE."""
+    recipient = os.environ.get("REPORT_RECIPIENT_EMAIL") if testlauf \
+        else os.environ["REPORT_RECIPIENT_EMAIL"]
 
     # --- Quellen -----------------------------------------------------------
-    logger.info("Rufe alle HR-Quellen ab...")
-    collected = collect_all_sources()
+    if testlauf:
+        kategorie = os.environ.get("TEST_KATEGORIE", "Urteile")
+        if kategorie not in SOURCES:
+            raise SystemExit(
+                f"TEST_KATEGORIE={kategorie!r} gibt es nicht. "
+                f"Möglich: {', '.join(SOURCES)}"
+            )
+        logger.info(f"TESTLAUF - nur Kategorie {kategorie!r}, kein Versand.")
+        collected = {kategorie: []}
+        for name, url, fmt, hinweis in SOURCES[kategorie]:
+            ergebnis = fetch_and_extract(url, mit_links=True)
+            logger.info(f"[{kategorie}] {name}: "
+                        f"{'✅' if ergebnis['status'] == 'ok' else '❌ ' + str(ergebnis['error'])}")
+            collected[kategorie].append({
+                "name": name, "url": url, "format": fmt,
+                "access_hint": hinweis, "ist_detailseite": False, **ergebnis,
+            })
+        folge_detailseiten(collected)
+        state = hot_topics.lade_state()
+        hot_topics.aktualisiere_aus_quellen(state, collected)
+    else:
+        logger.info("Rufe alle HR-Quellen ab...")
+        collected = collect_all_sources()
 
-    logger.info("Lade verlinkte Einzelmeldungen nach...")
-    folge_detailseiten(collected)
+        logger.info("Lade verlinkte Einzelmeldungen nach...")
+        folge_detailseiten(collected)
 
-    # Themenzustand VOR der Web-Suche laden, damit gezielt nach den
-    # laufenden Dauerthemen gesucht werden kann.
-    state = hot_topics.lade_state()
-    hot_topics.aktualisiere_aus_quellen(state, collected)
-    laufende_themen = hot_topics.aktive_themen(state)
+        # Themenzustand VOR der Web-Suche laden, damit gezielt nach den
+        # laufenden Dauerthemen gesucht werden kann.
+        state = hot_topics.lade_state()
+        hot_topics.aktualisiere_aus_quellen(state, collected)
+        laufende_themen = hot_topics.aktive_themen(state)
 
-    logger.info("Suche zusätzlich per Web-Suche nach aktuellen Fachbeiträgen...")
-    collect_search_based_sources(collected, laufende_themen)
+        logger.info("Suche zusätzlich per Web-Suche nach aktuellen Fachbeiträgen...")
+        collect_search_based_sources(collected, laufende_themen)
 
-    newsletter_sources = fetch_hr_newsletter_sources()
-    if newsletter_sources:
-        collected["Newsletter-Auswertung"] = newsletter_sources
+        newsletter_sources = fetch_hr_newsletter_sources()
+        if newsletter_sources:
+            collected["Newsletter-Auswertung"] = newsletter_sources
 
     # Zweiter Durchgang: die neu hinzugekommenen Quellen können Stichtage
     # enthalten, die den Themenzustand präzisieren.
-    hot_topics.aktualisiere_aus_quellen(state, collected)
-    hot_topics.aufraeumen(state)
+    if not testlauf:
+        hot_topics.aktualisiere_aus_quellen(state, collected)
+        hot_topics.aufraeumen(state)
     radar_themen = hot_topics.aktive_themen(state)
     logger.info(
         f"Themenradar: {len(radar_themen)} laufende(s) Thema/Themen - "
@@ -997,10 +1074,15 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
         # Der Themenzustand wird trotzdem gesichert: die Quellen wurden ja
         # abgerufen, und die darin gefundenen Stichtage sollen für den
         # nächsten Lauf nicht verloren gehen.
-        hot_topics.speichere_state(state)
+        if not testlauf:
+            hot_topics.speichere_state(state)
         raise  # Job soll weiterhin als fehlgeschlagen markiert werden
 
-    hot_topics.speichere_state(state)
+    # Im Testlauf den Zustand NICHT schreiben - ein Lauf über eine
+    # einzige Kategorie würde sonst das Gedächtnis des Themenradars mit
+    # einem Ausschnitt überschreiben.
+    if not testlauf:
+        hot_topics.speichere_state(state)
 
     # --- Prüfen und ausliefern --------------------------------------------
     unknown_urls = validate_output_urls(body_html, collected)
@@ -1065,6 +1147,13 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
         f.write(full_html)
     logger.info(f"Report gespeichert unter: {output_path}")
 
+    if testlauf:
+        logger.info(
+            f"TESTLAUF beendet - {len(alle_meldungen)} Meldung(en), "
+            "kein Versand, kein OneDrive-Upload, Themenradar unverändert."
+        )
+        return
+
     try:
         onedrive_upload.upload_to_onedrive(
             full_html, f"HR-Briefing_{safe_label}.html"
@@ -1090,7 +1179,12 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["weekly"], default="weekly")
+    parser.add_argument(
+        "--mode", choices=["weekly", "test"], default="weekly",
+        help="weekly = vollständiger Lauf mit Versand; "
+             "test = eine Kategorie, kein Versand, kein OneDrive, "
+             "Themenradar bleibt unverändert (Kategorie über TEST_KATEGORIE)",
+    )
     args = parser.parse_args()
 
     today = datetime.date.today()
@@ -1098,4 +1192,5 @@ if __name__ == "__main__":
     run(
         week_label=f"KW {week} / {today.strftime('%B %Y')}",
         subject=f"HR-Wissen Weekly – KW {week} / {today.strftime('%B %Y')}",
+        testlauf=(args.mode == "test"),
     )
