@@ -8,7 +8,7 @@
       "beleg_quelle": "https://www.haufe.de/personal/arbeitsrecht/urteil-kuendigung-wegen-fuehrerscheinentzug_76_694732.html",
       "beleg_quelle_name": "Urteil: Kündigung wegen Führerscheinentzug | Personal",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
         "2026-09-19"
       ],
@@ -42,7 +42,7 @@
       "beleg_quelle": "https://www.bundesrat.de/",
       "beleg_quelle_name": "Bundesrat – Homepage",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 4,
       "laeufe": [
         "2026-09-19"
       ],
@@ -59,7 +59,7 @@
       "beleg_quelle": "https://www.lohnsteuer-kompakt.de/steuerwissen/bafa-foerderkompass-2026-foerderprogramme-im-ueberblick/",
       "beleg_quelle_name": "BAFA Förderkompass 2026: Förderprogramme im Überblick",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
         "2026-09-19"
       ],
@@ -70,13 +70,47 @@
       "stichtag_art": "Inkrafttreten",
       "zuletzt_gesehen": "2026-09-19"
     },
+    "generalpurposeaimodelle": {
+      "anzeige": "General-Purpose-AI-Modelle",
+      "beleg": "Ab dem 2. August 2026 gilt die Verordnung vollständig, einschließlich der Hochrisiko-KI-Pflichten für Systeme nach Anhang III.",
+      "beleg_quelle": "https://www.secjur.com/blog/eu-ai-act",
+      "beleg_quelle_name": "EU AI Act im Mai 2026: Pflichten, Risikoklassen und Stand - SECJUR",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.secjur.com/blog/eu-ai-act"
+      ],
+      "stichtag": "2026-08-02",
+      "stichtag_art": "gilt ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "intelligenz": {
+      "anzeige": "Intelligenz",
+      "beleg": "Er gilt seit dem 1. August 2024. Einzelne Pflichten sind bereits in Kraft: Art. 4 (KI-Kompetenz für Anbieter und Betreiber) und Art. 5 (verbotene Praktiken) seit Februar 2025, die Pflichten für General-Purpose-AI-Modelle seit August 2025. Die Vollanwendung beginnt am 2. August 2026.",
+      "beleg_quelle": "https://www.secjur.com/blog/eu-ai-act",
+      "beleg_quelle_name": "EU AI Act im Mai 2026: Pflichten, Risikoklassen und Stand - SECJUR",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.secjur.com/blog/eu-ai-act"
+      ],
+      "stichtag": "2024-08-01",
+      "stichtag_art": "Inkrafttreten",
+      "zuletzt_gesehen": "2026-09-19"
+    },
     "lohnsteuerabzugsverfahren": {
       "anzeige": "Lohnsteuerabzugsverfahren",
       "beleg": "Die Verwaltung ändert mit dem BMF-Schreiben vom 24. Juni 2026 das BMF-Schreiben vom 14. August 2025 zur Vorsorgepauschale im Lohnsteuerabzugsverfahren ab 2026. Das neue BMF-Schreiben betrifft die Vorsorgepauschale im Lohnsteuerabzugsverfahren bei gesetzlich krankenversicherten Dienstordnungsangestellten und ist ab dem 1. Januar 2026 anzuwenden.",
       "beleg_quelle": "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html",
       "beleg_quelle_name": "BMF – Schreiben Lohnsteuer/Allgemeines",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 4,
       "laeufe": [
         "2026-09-19"
       ],
@@ -93,7 +127,7 @@
       "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
       "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
         "2026-09-19"
       ],
@@ -110,7 +144,7 @@
       "beleg_quelle": "https://www.husemannpartner.de/aktuelles/jahressteuergesetz-2026",
       "beleg_quelle_name": "Jahressteuergesetz 2026 - Husemann",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
         "2026-09-19"
       ],
@@ -127,7 +161,7 @@
       "beleg_quelle": "https://www.dhpg.de/de/newsroom/blog/jahressteuergesetz2026-kompakter-ueberblick-zu-den-zentralen-steueraenderungen",
       "beleg_quelle_name": "Jahressteuergesetz 2026: Kompakter Überblick zu den zentralen... - dhpg",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
         "2026-09-19"
       ],
@@ -144,7 +178,7 @@
       "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
       "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
         "2026-09-19"
       ],
@@ -155,13 +189,30 @@
       "stichtag_art": "Übergangsfrist",
       "zuletzt_gesehen": "2026-09-19"
     },
+    "regulierung": {
+      "anzeige": "Regulierung",
+      "beleg": "Er gilt seit dem 1. August 2024, einzelne Pflichten sind bereits anwendbar.",
+      "beleg_quelle": "https://www.secjur.com/blog/eu-ai-act",
+      "beleg_quelle_name": "EU AI Act im Mai 2026: Pflichten, Risikoklassen und Stand - SECJUR",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.secjur.com/blog/eu-ai-act"
+      ],
+      "stichtag": "2024-08-01",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
     "steuerpflichtige": {
       "anzeige": "Steuerpflichtige",
       "beleg": "Und die Übergangsfrist ist lang und wurde schließlich noch einmal gestreckt: Das Ganze soll erst ab 1. Januar 2030 gelten.",
       "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
       "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
         "2026-09-19"
       ],
@@ -189,13 +240,30 @@
       "stichtag_art": "Inkrafttreten",
       "zuletzt_gesehen": "2026-09-19"
     },
+    "taetigkeitsstaette": {
+      "anzeige": "Tätigkeitsstätte",
+      "beleg": "Die Neuregelung soll erstmals auf Zuordnungen anzuwenden sein, die nach dem 31. Dezember 2026 dienst- oder arbeitsrechtlich festgelegt werden (§ 52 Abs. 16b EStG-E).",
+      "beleg_quelle": "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html",
+      "beleg_quelle_name": "Geplante lohnsteuerliche Änderungen laut Jahressteuergesetz 2026",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html"
+      ],
+      "stichtag": "2026-12-31",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-09-19"
+    },
     "verbraucherkreditrichtlinie": {
       "anzeige": "Verbraucherkreditrichtlinie",
       "beleg": "Die Richtlinie war ursprünglich bis zum 20. November 2025 umzusetzen.",
       "beleg_quelle": "https://www.bundesrat.de/SharedDocs/termine/DE/presse/2026/20260923-va.html",
       "beleg_quelle_name": "Bundesrat – Homepage → Terminhinweis Vermittlungsausschuss tagt zur Schuldnerberatung",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 4,
       "laeufe": [
         "2026-09-19"
       ],
@@ -204,6 +272,23 @@
       ],
       "stichtag": "2025-11-20",
       "stichtag_art": "Umsetzungsfrist",
+      "zuletzt_gesehen": "2026-09-19"
+    },
+    "vollanwendung": {
+      "anzeige": "Vollanwendung",
+      "beleg": "Vollanwendung ab 2. August 2026. Art. 4 (KI-Kompetenz) und Art. 5 (verbotene Praktiken) sind seit Februar 2025 anwendbar, GPAI-Pflichten seit August 2025. Wer KI-Kompetenz nicht dokumentiert hat, ist bereits in der Pflichtverletzung.",
+      "beleg_quelle": "https://www.secjur.com/blog/eu-ai-act",
+      "beleg_quelle_name": "EU AI Act im Mai 2026: Pflichten, Risikoklassen und Stand - SECJUR",
+      "erstmals_gesehen": "2026-09-19",
+      "erwaehnungen": 2,
+      "laeufe": [
+        "2026-09-19"
+      ],
+      "quellen": [
+        "https://www.secjur.com/blog/eu-ai-act"
+      ],
+      "stichtag": "2026-08-02",
+      "stichtag_art": "Anwendung ab",
       "zuletzt_gesehen": "2026-09-19"
     },
     "zuordnungen": {
