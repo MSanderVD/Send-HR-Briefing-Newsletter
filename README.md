@@ -87,6 +87,8 @@ Pressemitteilungen greift sie deutlich besser.
 | `HOT_TOPIC_MAX` | 6 | Maximale Zahl der Themen im Radar-Abschnitt |
 | `MAX_DETAILSEITEN` | 4 | Nachgeladene Einzelmeldungen je Übersichtsseite |
 | `MIN_CONTEXT_LENGTH` | 32000 | Mindest-Kontextfenster eines zugelassenen Modells |
+| `LLM_TIMEOUT` | 180 | Hartes Wanduhr-Timeout je LLM-Anfrage in Sekunden |
+| `TEST_KATEGORIE` | Urteile | Welche Kategorie `--mode test` abruft |
 
 ## Setup
 
@@ -153,7 +155,20 @@ erfundene Inhalte).
 
 ### 5. Manuell testen
 
-Im Tab *Actions* → *HR-Briefing* → *Run workflow* auslösen, oder lokal:
+Im Tab *Actions* → *HR-Briefing* → *Run workflow*. Dort gibt es zwei
+Eingabefelder:
+
+- **mode = weekly** – vollständiger Lauf mit Versand. Dauert rund eine
+  halbe Stunde: gut 40 Quellen, dazu die nachgeladenen Einzelmeldungen
+  und sieben bis acht LLM-Aufrufe.
+- **mode = test** – ruft nur **eine** Kategorie ab (wählbar über
+  *test_kategorie*), überspringt Web-Suche und Newsletter-Postfach und
+  **versendet nichts**. Kein OneDrive-Upload, und der Themenradar bleibt
+  unverändert – ein Ausschnittslauf soll das Gedächtnis nicht
+  überschreiben. Das Ergebnis liegt als Actions-Artifact bereit.
+  Läuft in wenigen Minuten und ist der Weg, um eine Änderung zu prüfen.
+
+Lokal:
 
 ```bash
 export GMAIL_CREDENTIALS_JSON="$(cat credentials.json)"
@@ -161,6 +176,9 @@ export GMAIL_TOKEN_JSON="$(cat token.json)"
 export REPORT_RECIPIENT_EMAIL='du@example.com'
 export OPENROUTER_API_KEY='...'
 python hr_briefing.py --mode weekly
+
+# schneller Durchlauf ohne Versand, nur eine Kategorie:
+TEST_KATEGORIE=Urteile python hr_briefing.py --mode test
 ```
 
 ## Dateien
@@ -177,11 +195,18 @@ python hr_briefing.py --mode weekly
 
 ## Bekannte Grenzen
 
+- **Ein vollständiger Lauf dauert rund eine halbe Stunde.** Für ein
+  Wochenbriefing ist das unerheblich, beim Entwickeln nicht – dafür gibt
+  es `--mode test` (siehe oben). Der größte Zeitfresser sind die
+  LLM-Aufrufe: Da je Kategorie einer läuft, sind es sieben bis acht pro
+  Ausgabe statt einem. Damit die Fallback-Kette nicht bei jedem Aufruf
+  von vorn beginnt, merkt sich `call_openrouter` das zuletzt erfolgreiche
+  Modell und überspringt Modelle, die in diesem Lauf schon zweimal
+  versagt haben.
 - Kostenlose OpenRouter-Modelle können bei Rate-Limits (`429`) einzelne
-  Anfragen verzögern; das Skript versucht automatisch mehrere Modelle
-  nacheinander. Da jetzt je Kategorie ein eigener Aufruf läuft, sind es
-  etwa sieben bis acht Anfragen pro Ausgabe statt einer – bei knappen
-  Kontingenten kann ein Lauf dadurch länger dauern.
+  Anfragen verzögern; das Skript wartet einmal 20 Sekunden und zieht
+  dann zum nächsten Modell weiter, statt lange auf einem Modell zu
+  beharren.
 - Nur Modelle mit mindestens `MIN_CONTEXT_LENGTH` Token Kontext werden
   zugelassen. Findet sich keins, weicht das Skript auf 16.000 aus, statt
   den Lauf abzubrechen.
