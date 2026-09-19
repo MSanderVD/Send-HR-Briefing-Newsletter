@@ -7,27 +7,86 @@ Modell-Auswahl und Fehlerbehandlung.
 
 ## Wie es funktioniert
 
-1. `hr_briefing.py` ruft feste, konfigurierte Quellen **wirklich per HTTP ab**
-   (Bundestag, Bundesregierung, BMAS, BMF, BAG, BFH, BSG, Bundesrat, EU-
-   Kommission, Haufe, LTO – siehe `SOURCES`-Dictionary im Skript).
-2. Nur der tatsächlich abgerufene Text wird als Kontext an ein LLM
-   (über OpenRouter, kostenlose Modelle, live abgefragt) geschickt. Das
-   Modell darf keine Aktenzeichen, Daten, Gerichte oder Links erfinden,
-   die nicht im Kontext stehen.
-3. Nach der LLM-Antwort läuft ein automatischer Grounding-Check: alle im
-   Report genannten URLs werden gegen die Liste tatsächlich abgerufener
-   Quellen geprüft, und jede "Quelle:"-Angabe gegen die konfigurierten
-   Quellennamen (auf Wort-Ebene – verkürzte Zitate wie "BAG" statt
-   "Bundesarbeitsgericht (BAG)" sind korrekt und lösen keinen Fehlalarm aus).
-4. Versand per **Gmail API** von `vdnewsletteranalyse@gmail.com` an
-   `REPORT_RECIPIENT_EMAIL` – siehe `send_email_gmail()` in
-   `hr_briefing.py`. Dasselbe OAuth-Token wird auch für das Auslesen der
-   HR-Newsletter aus diesem Postfach genutzt (Scopes `gmail.readonly` +
-   `gmail.send`).
+1. **Quellen abrufen.** `hr_briefing.py` ruft feste, konfigurierte Quellen
+   **wirklich per HTTP ab** (Bundestag, Bundesregierung, BMAS, BMF, BAG,
+   BFH, BSG, Bundesrat, EU-Kommission, Haufe, LTO – siehe `SOURCES`).
+2. **Einzelmeldungen nachladen.** Von jeder Übersichtsseite wird den
+   Links zu den eigentlichen Meldungen gefolgt (`folge_detailseiten`).
+   Ohne diesen Schritt steht im Kontext nur eine Liste aus Datum und
+   Überschrift – daraus kann das Modell nichts Konkretes schreiben,
+   ohne zu erfinden.
+3. **Je Kategorie ein eigener LLM-Aufruf** (`meldungen.py`), der
+   strukturiertes JSON mit festen Pflichtfeldern liefert – bei Urteilen
+   z. B. Gericht, Aktenzeichen, Entscheidungsdatum und Kernaussage, bei
+   Gesetzgebungsverfahren Stand, nächster Schritt, geplantes
+   Inkrafttreten und Verzögerung.
+4. **Feldweise Grounding-Prüfung.** Aktenzeichen und Daten müssen
+   wörtlich in einer abgerufenen Quelle stehen, sonst wird das Feld
+   entfernt; eine Meldung mit unbekannter URL wird ganz verworfen.
+   Beanstandetes steht damit gar nicht erst im Newsletter.
+5. **HTML in Python** (`render.py`), nicht im Modell – Formatfehler sind
+   dadurch strukturell ausgeschlossen.
+6. **Themenradar** (`hot_topics.py`): Dauerthemen werden über Läufe
+   hinweg fortgeführt, bis zum Inkrafttreten und eine Karenzzeit darüber
+   hinaus (siehe unten).
+7. **Versand per Gmail API** von `vdnewsletteranalyse@gmail.com` an
+   `REPORT_RECIPIENT_EMAIL` – siehe `send_email_gmail()`. Dasselbe
+   OAuth-Token wird auch für das Auslesen der HR-Newsletter aus diesem
+   Postfach genutzt (Scopes `gmail.readonly` + `gmail.send`).
 
 Kategorien (aus der ursprünglichen PhiBox-Vorlage übernommen):
 Gesetzesvorhaben · BMF-Schreiben · Urteile · Verordnungen ·
 Gesetzgebungsverfahren · HR-Digitalisierung.
+
+## Themenradar: Themen über die Woche hinaus
+
+Der Newsletter betrachtete ursprünglich nur einen Wochenausschnitt. Ein
+Thema wie die Entgelttransparenzrichtlinie oder die Teilkrankschreibung
+war damit genau in der Woche sichtbar, in der eine Pressemitteilung
+erschien – und danach nie wieder, obwohl die eigentlich interessante
+Zeit erst beginnt: der Weg bis zum Inkrafttreten und die ersten Monate
+danach.
+
+`hot_topics.py` schließt diese Lücke, **ohne handgepflegte Themenliste**:
+
+- In jedem abgerufenen Quelltext wird nach Stichtagsformulierungen
+  gesucht („tritt am 1. Januar 2027 in Kraft", „bis zum 7. Juni 2026
+  umzusetzen", „Übergangsfrist endet am …").
+- Im Umfeld der Fundstelle wird der Themenbegriff bestimmt – in der
+  Verwaltungssprache fast immer ein langes Kompositum
+  („Entgelttransparenzrichtlinie", „Teilkrankschreibung") oder eine
+  Gesetzesabkürzung („EntgTranspG").
+- Begriff, Stichtag, Belegsatz und Quell-URL wandern nach
+  `state/hot_topics.json`. Diese Datei ist das Gedächtnis: Der Workflow
+  committet sie nach jedem Lauf zurück ins Repo.
+- Ein Thema bleibt aktiv, solange `heute <= Stichtag + Karenzzeit`
+  (Standard 120 Tage). Für aktive Themen läuft zusätzlich eine gezielte
+  Web-Suche **ohne** die Ein-Monats-Schranke der normalen Suche – sonst
+  wäre ein Thema unauffindbar, zu dem seit Wochen nichts Neues erschien.
+- Im Newsletter erscheinen die aktiven Themen im Abschnitt „Auf dem
+  Radar", mit Countdown und dem Belegsatz aus der Quelle.
+
+**Es wird nichts geraten.** Jeder Stichtag stammt wörtlich aus einem
+abgerufenen Text und wird mit Beleg gespeichert. Lässt sich kein Datum
+lesen, hat das Thema eben keinen Stichtag und braucht dann mehrere
+Erwähnungen, um auf den Radar zu kommen.
+
+`state/hot_topics.json` startet leer und füllt sich ab dem ersten Lauf.
+Ein Vorbefüllen aus den bereits versendeten Newsletter-HTMLs war
+erprobt, lieferte aber unzuverlässige Zuordnungen: Diese Dateien haben
+keine saubere Satzstruktur (Tabellenzellen und Aufzählungen ohne
+Satzzeichen), und die Erkennung braucht Sätze. Gegen echte
+Pressemitteilungen greift sie deutlich besser.
+
+### Stellschrauben (alle optional, als Umgebungsvariable)
+
+| Variable | Standard | Wirkung |
+|---|---|---|
+| `HOT_TOPIC_KARENZ_TAGE` | 120 | Wie lange ein Thema nach seinem Stichtag weiterläuft |
+| `HOT_TOPIC_VORLAUF_TAGE` | 550 | Wie weit im Voraus ein Stichtag schon auf den Radar kommt |
+| `HOT_TOPIC_MAX` | 6 | Maximale Zahl der Themen im Radar-Abschnitt |
+| `MAX_DETAILSEITEN` | 4 | Nachgeladene Einzelmeldungen je Übersichtsseite |
+| `MIN_CONTEXT_LENGTH` | 32000 | Mindest-Kontextfenster eines zugelassenen Modells |
 
 ## Setup
 
@@ -68,11 +127,22 @@ Unter *Settings → Secrets and variables → Actions*:
 | `GMAIL_TOKEN_JSON` | Ausgabe von `generate_token.py` – enthält das Refresh-Token mit **beiden** Scopes (`gmail.readonly` + `gmail.send`) |
 | `REPORT_RECIPIENT_EMAIL` | Empfänger-Adresse (z. B. `l.dashoefer@dashoefer.de`) |
 | `OPENROUTER_API_KEY` | Kostenloser API-Key von [openrouter.ai](https://openrouter.ai), kann vom KI-Briefing-Repo wiederverwendet werden |
+| `FIRECRAWL_API_KEY` | Key von [firecrawl.dev](https://firecrawl.dev) für die Web-Suche (optional – ohne ihn läuft das Briefing nur mit den festen Quellen) |
 
 Die früheren `GRAPH_*`-Secrets (Microsoft-Graph-Versand) werden nicht mehr
 gelesen und können gelöscht werden.
 
-### 3. Quellen anpassen
+### 3. Schreibrecht für den Workflow
+
+Der Workflow schreibt `state/hot_topics.json` ins Repo zurück – das ist
+das Gedächtnis des Themenradars. Dafür steht `permissions: contents:
+write` in `.github/workflows/hr-briefing.yml`. Zusätzlich muss unter
+*Settings → Actions → General → Workflow permissions* **"Read and write
+permissions"** gesetzt sein, sonst scheitert der Commit-Schritt mit
+einem 403. Ohne Schreibrecht läuft das Briefing trotzdem – der Radar
+fängt dann aber jede Woche bei null an.
+
+### 4. Quellen anpassen
 
 Die Liste der abgerufenen Seiten steht im `SOURCES`-Dictionary am Anfang
 von `hr_briefing.py`. Behörden-/Presseseiten ändern gelegentlich ihre
@@ -81,7 +151,7 @@ einfach die URL in `SOURCES` anpassen. Das Skript bricht dadurch nicht
 ab, es lässt die betroffene Quelle nur weg (lieber fehlende als
 erfundene Inhalte).
 
-### 4. Manuell testen
+### 5. Manuell testen
 
 Im Tab *Actions* → *HR-Briefing* → *Run workflow* auslösen, oder lokal:
 
@@ -93,37 +163,48 @@ export OPENROUTER_API_KEY='...'
 python hr_briefing.py --mode weekly
 ```
 
+## Dateien
+
+| Datei | Aufgabe |
+|---|---|
+| `hr_briefing.py` | Hauptablauf: Quellen, Detailseiten, LLM-Anbindung, Versand |
+| `meldungen.py` | Kategorie-Schemata, JSON-Extraktion, feldweise Grounding-Prüfung |
+| `render.py` | Baut den HTML-Newsletter aus den geprüften Meldungen |
+| `hot_topics.py` | Stichtagserkennung und Themenradar über mehrere Läufe |
+| `web_search_sources.py` | Firecrawl-Web-Suche je Kategorie und je Dauerthema |
+| `onedrive_upload.py` | Ablage des fertigen Reports in OneDrive |
+| `state/hot_topics.json` | Gedächtnis des Themenradars (wird automatisch gepflegt) |
+
 ## Bekannte Grenzen
 
 - Kostenlose OpenRouter-Modelle können bei Rate-Limits (`429`) einzelne
   Anfragen verzögern; das Skript versucht automatisch mehrere Modelle
-  nacheinander.
+  nacheinander. Da jetzt je Kategorie ein eigener Aufruf läuft, sind es
+  etwa sieben bis acht Anfragen pro Ausgabe statt einer – bei knappen
+  Kontingenten kann ein Lauf dadurch länger dauern.
+- Nur Modelle mit mindestens `MIN_CONTEXT_LENGTH` Token Kontext werden
+  zugelassen. Findet sich keins, weicht das Skript auf 16.000 aus, statt
+  den Lauf abzubrechen.
 - Wenn eine Quelle nicht erreichbar ist, wird sie **nicht** ins Briefing
   aufgenommen – das Skript füllt Lücken nicht mit Vermutungen auf.
   Fehlgeschlagene Quellen werden am Ende des Reports aufgelistet
   (aufklappbar).
+- Das Nachladen der Einzelmeldungen arbeitet mit einer Heuristik
+  (Linktext ab 30 Zeichen, gleiche Domain, keine Binärdateien). Sie ist
+  bewusst konservativ: lieber eine Meldung verpassen als eine
+  Rubrikseite in den Kontext holen. PDF-Anlagen – bei BMF-Schreiben der
+  Regelfall – werden dabei übersprungen, weil der Textextraktor kein PDF
+  liest.
 - Manche Behördenseiten laden Inhalte dynamisch per JavaScript nach;
   ein reiner `requests`-Abruf sieht dann ggf. weniger Text als im
-  Browser sichtbar ist. Die `SOURCES`-Einträge wurden bewusst auf
-  möglichst textlastige, serverseitig gerenderte Übersichtsseiten
-  (Pressemitteilungslisten, Schreiben-Verzeichnisse) ausgerichtet.
-- Die konfigurierten URLs wurden per Web-Recherche ermittelt, aber
-  **nicht** aus dieser Sandbox heraus per `requests` gegen die
-  Zielserver getestet (die Sandbox hat keinen Netzwerkzugriff auf
-  Behördendomains) – ein erster Testlauf über *Run workflow* sollte
-  vor der ersten produktiven Woche gemacht werden.
-- Der Gmail-Versand wurde nicht aus der Sandbox heraus getestet (kein
-  Netzwerkzugriff auf `googleapis.com`) – beim ersten Testlauf das Log
-  prüfen. Häufigste Fehlerquellen:
-  - `403 insufficient authentication scopes` → `GMAIL_TOKEN_JSON` wurde
-    ohne `gmail.send` erzeugt, `generate_token.py` erneut ausführen.
-  - `invalid_grant` → Refresh-Token abgelaufen (OAuth-App noch im
-    Testing-Modus, 7-Tage-Limit) oder Zugriff im Google-Konto entzogen.
+  Browser sichtbar ist.
 - Gmail hat ein Versandlimit (bei kostenlosen Konten ~500 Empfänger/Tag).
   Für ein Wochenbriefing an wenige Empfänger unkritisch; bei einem
   größeren Verteiler wäre ein echter Mail-Dienst der bessere Weg.
 
 ## Geplant, noch nicht enthalten
 
+- PDF-Auswertung für BMF-Schreiben (dort steht der eigentliche Inhalt
+  meist im verlinkten PDF, nicht auf der Übersichtsseite).
 - GitLab-Migration (reines Kopieren + Workflow-Syntax übersetzen, erst
   nach Stabilisierung auf GitHub).
