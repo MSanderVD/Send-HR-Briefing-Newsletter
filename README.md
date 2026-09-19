@@ -125,8 +125,8 @@ Unter *Settings → Secrets and variables → Actions*:
 
 | Secret | Beschreibung |
 |---|---|
-| `GMAIL_CREDENTIALS_JSON` | Inhalt der `credentials.json` des OAuth-Clients (Desktop-App) – kann aus dem `Newsletter-Analyse`-Repo übernommen werden |
-| `GMAIL_TOKEN_JSON` | Ausgabe von `generate_token.py` – enthält das Refresh-Token mit **beiden** Scopes (`gmail.readonly` + `gmail.send`) |
+| `GMAIL_CREDENTIALS_JSON` | Inhalt der `credentials.json` des OAuth-Clients (Desktop-App) – kann aus dem `Newsletter-Analyse`-Repo übernommen werden. Akzeptiert sowohl `installed` (Desktop) als auch `web`. Fehlt der Wert oder passt er nicht, greift das Skript auf `client_id`/`client_secret` aus `GMAIL_TOKEN_JSON` zurück – die Ausgabe von `generate_token.py` enthält beides |
+| `GMAIL_TOKEN_JSON` | Ausgabe von `generate_token.py` – enthält das Refresh-Token mit **beiden** Scopes (`gmail.readonly` + `gmail.send`). **Vorsicht:** Diese Ausgabe gehört nur hierher, nicht zusätzlich in `GMAIL_CREDENTIALS_JSON` |
 | `REPORT_RECIPIENT_EMAIL` | Empfänger-Adresse (z. B. `l.dashoefer@dashoefer.de`) |
 | `OPENROUTER_API_KEY` | Kostenloser API-Key von [openrouter.ai](https://openrouter.ai), kann vom KI-Briefing-Repo wiederverwendet werden |
 | `FIRECRAWL_API_KEY` | Key von [firecrawl.dev](https://firecrawl.dev) für die Web-Suche (optional – ohne ihn läuft das Briefing nur mit den festen Quellen) |
