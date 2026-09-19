@@ -331,24 +331,35 @@ def begriff_zulaessig(wort: str) -> bool:
     return True
 
 
-def _finde_begriff(fenster: str) -> tuple[str, str] | None:
+def _ist_rechtsakt(wort: str) -> bool:
+    return (wort.lower().endswith(RECHTSAKT_ENDUNGEN)
+            or re.fullmatch(r'[A-ZÄÖÜ][A-Za-zÄÖÜäöü]{2,}(?:G|VO|RL|StV)', wort) is not None)
+
+
+def _finde_begriff(fenster: str, satzanfaenge: set | None = None) -> tuple[str, str] | None:
     """Sucht im Textfenster um ein Stichtagsdatum den Themenbegriff.
 
     Rangfolge: erst Rechtsakte (Gesetz/Verordnung/Richtlinie/Abkürzung),
     dann Länge. Ohne die erste Stufe gewinnt regelmäßig ein beliebiges
-    langes Kompositum aus demselben Satz."""
+    langes Kompositum aus demselben Satz.
+
+    `satzanfaenge` enthält die ersten Wörter der betrachteten Sätze. Die
+    werden übersprungen, sofern es keine Rechtsakte sind: Am Satzanfang
+    ist JEDES Wort großgeschrieben, die Großschreibung taugt dort also
+    nicht als Hinweis auf ein Substantiv. So kamen nacheinander
+    "Entsprechend" und "Beschlossen" in den Radar - Endungslisten
+    fangen diese Klasse nur stückweise, die Position im Satz fängt sie
+    ganz."""
+    satzanfaenge = satzanfaenge or set()
     kandidaten = []
     for m in BEGRIFF_REGEX.finditer(fenster):
         wort = _grundform(m.group(1).rstrip("-"))
         if not begriff_zulaessig(wort):
             continue
-        schluessel = _norm(wort)
-        unten = wort.lower()
-        ist_rechtsakt = (
-            unten.endswith(RECHTSAKT_ENDUNGEN)
-            or re.fullmatch(r'[A-ZÄÖÜ][A-Za-zÄÖÜäöü]{2,}(?:G|VO|RL|StV)', wort) is not None
-        )
-        kandidaten.append((0 if ist_rechtsakt else 1, -len(wort), wort, schluessel))
+        rechtsakt = _ist_rechtsakt(wort)
+        if wort in satzanfaenge and not rechtsakt:
+            continue
+        kandidaten.append((0 if rechtsakt else 1, -len(wort), wort, _norm(wort)))
 
     if not kandidaten:
         return None
@@ -404,11 +415,19 @@ def finde_stichtage(text: str) -> list[dict]:
                            for mu, _ in STICHTAG_MUSTER):
                     continue
 
-            gefunden = _finde_begriff(suchraum)
+            # Erste Wörter der betrachteten Sätze - dort ist jedes Wort
+            # großgeschrieben und damit kein Substantiv-Hinweis.
+            satzanfaenge = set()
+            for quelle in (satz, saetze[i - 1] if i > 0 else ""):
+                erstes = quelle.split()[:1]
+                if erstes:
+                    satzanfaenge.add(erstes[0].strip('„"(»').rstrip(',.;:!?'))
+
+            gefunden = _finde_begriff(suchraum, satzanfaenge)
             # Der Begriff steht oft eine Aussage früher ("Mit der
             # Teilkrankschreibung ... . Die Neuregelung tritt am ...").
             if not gefunden and nachbar_erlaubt and i > 0:
-                gefunden = _finde_begriff(saetze[i - 1])
+                gefunden = _finde_begriff(saetze[i - 1], satzanfaenge)
             if not gefunden:
                 continue
             anzeige, schluessel = gefunden

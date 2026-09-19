@@ -407,45 +407,49 @@ def _extract_email_body(payload: dict) -> str:
 def _oauth_client(creds_data: dict) -> tuple[str, str]:
     """Ermittelt client_id und client_secret des OAuth-Clients.
 
-    Drei Quellen werden der Reihe nach probiert, weil in der Praxis alle
-    drei Formen vorkommen:
-      1. GMAIL_CREDENTIALS_JSON mit Schlüssel "installed" (Desktop-App,
-         der Normalfall),
-      2. mit Schlüssel "web" (Client wurde als Web-Anwendung angelegt),
-      3. gar kein passender Schlüssel - dann aus dem Token selbst.
+    Reihenfolge - und die ist wichtig:
 
-    Fall 3 klingt exotisch, ist aber der häufigste Bedienfehler: In die
-    Zwischenablage kommt beim Einrichten die Ausgabe von
-    generate_token.py, und die landet versehentlich in BEIDEN Secrets.
-    Weil generate_token.py client_id und client_secret ohnehin mit
-    ausgibt, lässt sich der Versand daraus trotzdem aufbauen - besser,
-    als den Lauf an einem KeyError scheitern zu lassen."""
+      1. client_id/client_secret AUS DEM TOKEN selbst. Ein Refresh-Token
+         ist untrennbar an den OAuth-Client gebunden, mit dem es
+         ausgestellt wurde; die im Token mitgelieferten Angaben können
+         also gar nicht unpassend sein. generate_token.py schreibt sie
+         mit, deshalb sind sie in aller Regel vorhanden.
+      2. GMAIL_CREDENTIALS_JSON mit Schlüssel "installed" (Desktop-App)
+         oder "web" (Web-Anwendung).
+      3. Das Secret ohne solchen Schlüssel, also direkt die Felder.
+
+    Die frühere Reihenfolge - erst das Secret, dann das Token - hat den
+    Lauf vom 19.09. gekostet: Das Lesen des Postfachs klappte noch mit
+    dem gültigen Access-Token, aber beim Versand scheiterte der
+    Token-Refresh mit `unauthorized_client`, weil im Secret die
+    Zugangsdaten eines ANDEREN OAuth-Clients lagen als der, mit dem das
+    Refresh-Token erzeugt worden war. Ein solcher Fehler ist von aussen
+    praktisch nicht zu sehen; die Bindung ans Token ist dagegen
+    garantiert stimmig."""
+    if creds_data.get("client_id") and creds_data.get("client_secret"):
+        return creds_data["client_id"], creds_data["client_secret"]
+
     roh = os.environ.get("GMAIL_CREDENTIALS_JSON", "").strip()
     if roh:
+        logger.info(
+            "GMAIL_TOKEN_JSON führt keine Client-Angaben mit - nutze "
+            "GMAIL_CREDENTIALS_JSON. Falls der Versand mit "
+            "'unauthorized_client' scheitert, gehört dort der OAuth-Client, "
+            "mit dem das Token erzeugt wurde."
+        )
         try:
             daten = json.loads(roh)
             block = daten.get("installed") or daten.get("web") or daten
             if block.get("client_id") and block.get("client_secret"):
                 return block["client_id"], block["client_secret"]
-            logger.warning(
-                "GMAIL_CREDENTIALS_JSON enthält weder 'installed' noch 'web' "
-                "mit client_id/client_secret - weiche auf die Angaben im "
-                "Token aus. Bitte das Secret mit dem Inhalt der "
-                "credentials.json des OAuth-Clients füllen."
-            )
         except json.JSONDecodeError:
-            logger.warning(
-                "GMAIL_CREDENTIALS_JSON ist kein gültiges JSON - weiche auf "
-                "die Angaben im Token aus."
-            )
-
-    if creds_data.get("client_id") and creds_data.get("client_secret"):
-        return creds_data["client_id"], creds_data["client_secret"]
+            logger.warning("GMAIL_CREDENTIALS_JSON ist kein gültiges JSON.")
 
     raise RuntimeError(
-        "Kein OAuth-Client gefunden. GMAIL_CREDENTIALS_JSON muss den Inhalt "
-        "der credentials.json enthalten (Schlüssel 'installed' oder 'web'), "
-        "oder GMAIL_TOKEN_JSON muss client_id und client_secret mitführen."
+        "Kein OAuth-Client gefunden. Entweder muss GMAIL_TOKEN_JSON "
+        "client_id und client_secret mitführen (so erzeugt es "
+        "generate_token.py), oder GMAIL_CREDENTIALS_JSON muss den Inhalt "
+        "der credentials.json enthalten (Schlüssel 'installed' oder 'web')."
     )
 
 
@@ -1008,7 +1012,37 @@ def send_email_gmail(to: str, subject: str, html_body: str) -> None:
     message["subject"] = subject
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
 
-    service.users().messages().send(userId="me", body={"raw": raw}).execute()
+    try:
+        service.users().messages().send(userId="me", body={"raw": raw}).execute()
+    except Exception as exc:
+        # Die Rohmeldungen von Google sind kurz und wenig aussagekräftig
+        # ("unauthorized_client: Unauthorized"). Hier steht, was sie im
+        # Zusammenhang dieses Skripts bedeuten.
+        text = str(exc)
+        if "unauthorized_client" in text:
+            raise RuntimeError(
+                "Google lehnt den Token-Refresh ab (unauthorized_client). Das "
+                "heißt: client_id/client_secret gehören nicht zu dem "
+                "OAuth-Client, mit dem GMAIL_TOKEN_JSON erzeugt wurde. "
+                "Sichersten Weg wählen: das Secret GMAIL_CREDENTIALS_JSON "
+                "leeren oder löschen - dann werden die Client-Angaben aus dem "
+                "Token selbst genommen, die dazu passen müssen."
+            ) from exc
+        if "invalid_grant" in text:
+            raise RuntimeError(
+                "Google lehnt das Refresh-Token ab (invalid_grant). Entweder "
+                "ist es abgelaufen - beim OAuth-Zustimmungsbildschirm im "
+                "Status 'Testing' passiert das nach 7 Tagen, dann auf 'In "
+                "Produktion' umstellen - oder der Zugriff wurde im "
+                "Google-Konto entzogen. Neu erzeugen mit generate_token.py."
+            ) from exc
+        if "insufficient authentication scopes" in text or "insufficientPermissions" in text:
+            raise RuntimeError(
+                "Das Token hat den Scope gmail.send nicht. Beim Ausführen von "
+                "generate_token.py müssen BEIDE Berechtigungen bestätigt "
+                "werden (lesen und senden)."
+            ) from exc
+        raise
 
 
 # ---------------------------------------------------------------------------
