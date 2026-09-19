@@ -404,6 +404,51 @@ def _extract_email_body(payload: dict) -> str:
     return ""
 
 
+def _oauth_client(creds_data: dict) -> tuple[str, str]:
+    """Ermittelt client_id und client_secret des OAuth-Clients.
+
+    Drei Quellen werden der Reihe nach probiert, weil in der Praxis alle
+    drei Formen vorkommen:
+      1. GMAIL_CREDENTIALS_JSON mit Schlüssel "installed" (Desktop-App,
+         der Normalfall),
+      2. mit Schlüssel "web" (Client wurde als Web-Anwendung angelegt),
+      3. gar kein passender Schlüssel - dann aus dem Token selbst.
+
+    Fall 3 klingt exotisch, ist aber der häufigste Bedienfehler: In die
+    Zwischenablage kommt beim Einrichten die Ausgabe von
+    generate_token.py, und die landet versehentlich in BEIDEN Secrets.
+    Weil generate_token.py client_id und client_secret ohnehin mit
+    ausgibt, lässt sich der Versand daraus trotzdem aufbauen - besser,
+    als den Lauf an einem KeyError scheitern zu lassen."""
+    roh = os.environ.get("GMAIL_CREDENTIALS_JSON", "").strip()
+    if roh:
+        try:
+            daten = json.loads(roh)
+            block = daten.get("installed") or daten.get("web") or daten
+            if block.get("client_id") and block.get("client_secret"):
+                return block["client_id"], block["client_secret"]
+            logger.warning(
+                "GMAIL_CREDENTIALS_JSON enthält weder 'installed' noch 'web' "
+                "mit client_id/client_secret - weiche auf die Angaben im "
+                "Token aus. Bitte das Secret mit dem Inhalt der "
+                "credentials.json des OAuth-Clients füllen."
+            )
+        except json.JSONDecodeError:
+            logger.warning(
+                "GMAIL_CREDENTIALS_JSON ist kein gültiges JSON - weiche auf "
+                "die Angaben im Token aus."
+            )
+
+    if creds_data.get("client_id") and creds_data.get("client_secret"):
+        return creds_data["client_id"], creds_data["client_secret"]
+
+    raise RuntimeError(
+        "Kein OAuth-Client gefunden. GMAIL_CREDENTIALS_JSON muss den Inhalt "
+        "der credentials.json enthalten (Schlüssel 'installed' oder 'web'), "
+        "oder GMAIL_TOKEN_JSON muss client_id und client_secret mitführen."
+    )
+
+
 def _get_gmail_service():
     """Gmail-Zugriff für BEIDES: Lesen der Newsletter (gmail.readonly)
     und Versand des Briefings (gmail.send) - über ein gemeinsames
@@ -412,14 +457,28 @@ def _get_gmail_service():
     Wichtig: Das Token MUSS mit beiden Scopes erzeugt worden sein, sonst
     scheitert der Versand mit einem 403 "insufficient authentication
     scopes". Zum Neuerzeugen siehe generate_token.py."""
-    creds_data = json.loads(os.environ["GMAIL_TOKEN_JSON"])
-    client_info = json.loads(os.environ["GMAIL_CREDENTIALS_JSON"])["installed"]
+    roh_token = os.environ.get("GMAIL_TOKEN_JSON", "").strip()
+    if not roh_token:
+        raise RuntimeError(
+            "GMAIL_TOKEN_JSON ist leer oder nicht gesetzt - mit "
+            "generate_token.py neu erzeugen (beide Scopes bestätigen)."
+        )
+    try:
+        creds_data = json.loads(roh_token)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"GMAIL_TOKEN_JSON ist kein gültiges JSON ({exc}) - beim "
+            "Einfügen wurde vermutlich nur ein Teil der Ausgabe von "
+            "generate_token.py kopiert."
+        ) from exc
+
+    client_id, client_secret = _oauth_client(creds_data)
     creds = Credentials(
         token=creds_data.get("token"),
         refresh_token=creds_data.get("refresh_token"),
         token_uri="https://oauth2.googleapis.com/token",
-        client_id=client_info["client_id"],
-        client_secret=client_info["client_secret"],
+        client_id=client_id,
+        client_secret=client_secret,
         scopes=GMAIL_SCOPES,
     )
     return build("gmail", "v1", credentials=creds)
@@ -698,9 +757,16 @@ _BEWAEHRTES_MODELL: str | None = None
 _FEHLVERSUCHE: dict[str, int] = {}
 
 # Ab so vielen Fehlversuchen wird ein Modell für den Rest des Laufs
-# übersprungen. Ein Modell, das zweimal nicht lieferte, liefert
-# erfahrungsgemäß auch beim dritten Mal nicht - es kostet nur Zeit.
-MAX_FEHLVERSUCHE = 2
+# übersprungen.
+#
+# Gezählt werden nur ECHTE Ausfälle: kaputte Ausgabe, HTTP-Fehler,
+# Verbindungsabbruch. Ein 429 zählt ausdrücklich NICHT - im Lauf vom
+# 19.09. wurden dadurch nach und nach alle Modelle gesperrt, und die
+# Kategorien "BMF-Schreiben" und "Gesetzgebungsverfahren" fielen mit
+# "Alle Modelle fehlgeschlagen" aus, obwohl sie im Lauf davor noch
+# geliefert hatten. Ein Rate-Limit ist eine Aussage über den Zeitpunkt,
+# nicht über die Eignung des Modells.
+MAX_FEHLVERSUCHE = 3
 
 # Hartes Timeout je Anfrage. Die Kategorie-Prompts sind deutlich kleiner
 # als der frühere Sammel-Prompt, brauchen also keine sechs Minuten.
@@ -763,8 +829,8 @@ def call_openrouter(prompt: str, validator=None) -> str:
                 # Einmal kurz warten, dann weiterziehen. Lange Wartezeiten
                 # lohnen nicht mehr, seit pro Ausgabe mehrere Aufrufe
                 # laufen - ein anderes Modell ist schneller als die
-                # Geduld mit diesem.
-                _FEHLVERSUCHE[model] = _FEHLVERSUCHE.get(model, 0) + 1
+                # Geduld mit diesem. Ein 429 wird NICHT als Fehlversuch
+                # gezählt (siehe MAX_FEHLVERSUCHE).
                 if attempt == 0:
                     logger.info(f"429 bei {model} - warte 20s")
                     time.sleep(20)
@@ -812,6 +878,18 @@ def call_openrouter(prompt: str, validator=None) -> str:
             logger.info(f"Modell {model} erfolgreich, Ausgabe-Qualitätscheck bestanden")
             _BEWAEHRTES_MODELL = model
             return content
+
+    # Alle Modelle durch, keins hat geliefert. Die Sperren werden
+    # zurückgenommen, damit die NÄCHSTE Kategorie wieder die volle
+    # Auswahl hat - sonst reisst ein schlechter Moment den Rest des
+    # Laufs mit, und mehrere Kategorien bleiben leer.
+    if _FEHLVERSUCHE:
+        logger.info(
+            "Kein Modell hat geliefert - setze die Fehlerzähler zurück, "
+            "damit die nächste Kategorie wieder alle Modelle probieren kann."
+        )
+        _FEHLVERSUCHE.clear()
+
     raise ValueError(
         f"Alle Modelle fehlgeschlagen oder lieferten fehlerhafte Ausgaben. "
         f"Letzter Fehler: {last_error}"
