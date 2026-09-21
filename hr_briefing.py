@@ -842,7 +842,11 @@ def call_openrouter(prompt: str, validator=None) -> str:
                 last_error = f"{model}: dauerhaft 429 (Rate-Limit)"
                 logger.warning(last_error)
                 break
-            if resp.status_code in (401, 403):
+            if resp.status_code == 401 or (
+                resp.status_code == 403
+                and any(w in resp.text.lower()
+                        for w in ("api key", "api-key", "unauthorized", "credential"))
+            ):
                 # Ungültiger/fehlender API-Key betrifft ALLE Modelle gleich -
                 # sinnlos, hier weitere Modelle durchzuprobieren.
                 raise PermissionError(
@@ -850,6 +854,19 @@ def call_openrouter(prompt: str, validator=None) -> str:
                     f"fehlend oder widerrufen) - Details: {resp.text[:300]}. "
                     "Bitte OPENROUTER_API_KEY-Secret prüfen."
                 )
+            if resp.status_code == 403:
+                # Ein 403 ist bei OpenRouter meistens MODELLBEZOGEN: das
+                # Modell verlangt eine bestimmte Datenschutz-Einstellung
+                # oder ist für dieses Konto gesperrt. Im Lauf vom
+                # 21.09. wurde ein solches 403 als Key-Problem gedeutet
+                # und beendete die ganze Kategorie "Urteile", obwohl
+                # fünf weitere Modelle bereitstanden.
+                last_error = f"{model}: HTTP 403 - {resp.text[:300]}"
+                logger.warning(
+                    f"Modell {model} abgelehnt (403) - nächstes Modell. {resp.text[:200]}"
+                )
+                _FEHLVERSUCHE[model] = _FEHLVERSUCHE.get(model, 0) + 1
+                break
             if resp.status_code in (400, 404, 500, 502, 503):
                 last_error = f"{model}: HTTP {resp.status_code} - {resp.text[:300]}"
                 logger.warning(f"Modell {model} fehlgeschlagen: {last_error}")
@@ -972,17 +989,29 @@ MELDUNGEN DIESER AUSGABE:
         return {"text": "", "radar": []}
 
 
-def validate_output_urls(html_text: str, collected: dict) -> list[str]:
+def validate_output_urls(html_text: str, collected: dict,
+                         radar_themen: list | None = None) -> list[str]:
     """Letzte Sicherung: extrahiert alle URLs aus dem fertigen Newsletter
     und prüft sie gegen die Liste tatsächlich abgerufener Quellen.
 
     Nach dem Umbau sollte hier nichts mehr auffallen - jede Meldung mit
     unbekannter URL wird schon in meldungen.pruefe_meldung() verworfen.
     Der Check bleibt trotzdem: er kostet nichts und deckt auf, falls das
-    Rendering doch einmal eine fremde URL einschleust."""
+    Rendering doch einmal eine fremde URL einschleust.
+
+    Die Belegquellen des Themenradars zählen ausdrücklich als bekannt.
+    Sie stammen aus FRÜHEREN Läufen und wurden dort über dieselbe
+    fetch_and_extract() geholt - im aktuellen `collected` stehen sie
+    aber nicht. Ohne diese Ausnahme meldet der Check sie als fremd, und
+    über dem versendeten Newsletter steht ein Warnbanner, der keiner
+    ist (so geschehen in KW 39 mit einer secjur.com-Belegstelle)."""
     known_urls = {
         e["url"] for entries in collected.values() for e in entries
     }
+    for thema in (radar_themen or []):
+        quelle = (thema.get("beleg_quelle") or "").strip()
+        if quelle:
+            known_urls.add(quelle)
     found_urls = set(re.findall(r'href=[\'"]?(https?://[^\'" >]+)', html_text))
     unknown = sorted(u for u in found_urls if u not in known_urls)
     if unknown:
@@ -1197,7 +1226,7 @@ Automatisch erstellt am {now_str} &middot; Alle Angaben ohne Gewähr
         hot_topics.speichere_state(state)
 
     # --- Prüfen und ausliefern --------------------------------------------
-    unknown_urls = validate_output_urls(body_html, collected)
+    unknown_urls = validate_output_urls(body_html, collected, radar_themen)
 
     for hinweis in beanstandungen:
         logger.warning(f"Grounding: {hinweis}")

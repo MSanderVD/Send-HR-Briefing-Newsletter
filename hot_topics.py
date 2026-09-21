@@ -55,6 +55,24 @@ logger = logging.getLogger(__name__)
 STATE_PATH = os.environ.get("HOT_TOPICS_STATE", "state/hot_topics.json")
 STATE_VERSION = 2
 
+# Version der ERKENNUNGSREGELN. Jedes Thema merkt sich, unter welchen
+# Regeln es aufgenommen wurde; beim Laden fliegt alles heraus, was unter
+# älteren Regeln entstanden ist.
+#
+# Nötig, weil eine verschärfte Regel sonst nur für neue Funde gilt. Ein
+# einmal aufgenommener Fehltreffer bleibt bis zum Ablauf seines
+# Stichtags im Radar - "Entsprechend" überlebte so die Adverb-Regel und
+# "Beschlossen" die Satzanfang-Regel, obwohl beide bereits aktiv waren.
+# Eine reine Nachprüfung über den Wortlaut reicht dafür nicht: Die
+# Satzanfang-Regel ist positionsabhängig und lässt sich am gespeicherten
+# Begriff gar nicht mehr nachvollziehen.
+#
+# Nach einer Regeländerung baut sich der Radar EINMAL neu auf: Themen,
+# die noch in den Quellen stehen, sind im selben Lauf wieder da;
+# Fehltreffer nicht. Diese Zahl bei jeder Änderung an den
+# Erkennungsregeln erhöhen.
+REGEL_VERSION = 3
+
 # Wie lange ein Thema nach seinem Stichtag noch mitläuft. Der Wunsch aus
 # der Redaktion war ausdrücklich "bis Inkrafttreten plus Karenzzeit" -
 # denn die praktischen Fragen (Wie setzen wir das um? Was sagt die erste
@@ -459,19 +477,27 @@ def _nachpruefen(state: dict) -> int:
     immer im Radar: Die Erkennungsregeln greifen nur bei neuen Funden,
     der Zustand wird sonst unbesehen übernommen. Genau so überlebte
     "Entsprechend" die Einführung der Adverb-Regel."""
-    raus = [
-        schluessel for schluessel, thema in state.get("themen", {}).items()
-        if not begriff_zulaessig(thema.get("anzeige") or schluessel)
-    ]
-    for schluessel in raus:
+    raus, veraltet = [], []
+    for schluessel, thema in state.get("themen", {}).items():
+        if thema.get("regeln") != REGEL_VERSION:
+            veraltet.append(schluessel)
+        elif not begriff_zulaessig(thema.get("anzeige") or schluessel):
+            raus.append(schluessel)
+
+    for schluessel in raus + veraltet:
         del state["themen"][schluessel]
+
     if raus:
         logger.info(
-            f"Hot-Topic-Verlauf: {len(raus)} gespeicherte(s) Thema/Themen "
-            f"entsprechen den aktuellen Regeln nicht mehr und wurden "
-            f"entfernt: {raus}"
+            f"Hot-Topic-Verlauf: {len(raus)} Thema/Themen entsprechen den "
+            f"aktuellen Regeln nicht mehr: {raus}"
         )
-    return len(raus)
+    if veraltet:
+        logger.info(
+            f"Hot-Topic-Verlauf: {len(veraltet)} Thema/Themen stammen aus "
+            f"älteren Erkennungsregeln und werden neu aufgebaut: {veraltet}"
+        )
+    return len(raus) + len(veraltet)
 
 
 def lade_state(pfad: str = STATE_PATH) -> dict:
@@ -540,6 +566,7 @@ def aktualisiere_aus_quellen(state: dict, collected: dict) -> int:
                     neu += 1
 
                 thema["zuletzt_gesehen"] = heute
+                thema["regeln"] = REGEL_VERSION
                 thema["erwaehnungen"] = thema.get("erwaehnungen", 0) + 1
                 if heute not in thema.setdefault("laeufe", []):
                     thema["laeufe"].append(heute)
