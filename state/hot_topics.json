@@ -1,7 +1,24 @@
 {
   "_hinweis": "Gedaechtnis des Themenradars. hot_topics.py schreibt diese Datei bei jedem Lauf fort, der Workflow committet sie zurueck - nicht von Hand pflegen. Sie startet bewusst leer: ein Vorbefuellen aus den bereits versendeten Newsletter-HTMLs war erprobt, lieferte aber unzuverlaessige Zuordnungen, weil diese Dateien keine saubere Satzstruktur haben (Tabellenzellen und Aufzaehlungen ohne Satzzeichen). Gegen echte Quelltexte greift die Erkennung deutlich besser; ab dem ersten Lauf fuellt sich die Datei von selbst.",
-  "aktualisiert": "2026-09-19",
+  "aktualisiert": "2026-09-21",
   "themen": {
+    "abwehrfaehigkeit": {
+      "anzeige": "Abwehrfähigkeit",
+      "beleg": "Das Gesetz der Bundesregierung ist am 6. Dezember 2025 in Kraft getreten.",
+      "beleg_quelle": "https://www.bundesregierung.de/breg-de/aktuelles/nis-2-richtlinie-deutschland-2373174",
+      "beleg_quelle_name": "Umsetzung der NIS-2-Richtlinie beschlossen - Bundesregierung.de",
+      "erstmals_gesehen": "2026-09-21",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-21"
+      ],
+      "quellen": [
+        "https://www.bundesregierung.de/breg-de/aktuelles/nis-2-richtlinie-deutschland-2373174"
+      ],
+      "stichtag": "2025-12-06",
+      "stichtag_art": "Inkrafttreten",
+      "zuletzt_gesehen": "2026-09-21"
+    },
     "arbeitgebers": {
       "anzeige": "Arbeitgebers",
       "beleg": "Nach Auffassung des Gerichts wurde das Arbeitsverhältnis durch die Kündigung des Arbeitgebers vom 24. November 2025 wirksam zum 31. Januar 2026 beendet.",
@@ -42,16 +59,34 @@
       "beleg_quelle": "https://intep.com/ratgeber/empco-richtlinie/",
       "beleg_quelle_name": "EmpCo-Richtlinie: Pflichten & Umsetzung 2026",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://intep.com/ratgeber/empco-richtlinie/"
       ],
       "stichtag": "2026-09-27",
       "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
+    },
+    "entgelttransparenzrichtlinie": {
+      "anzeige": "Entgelttransparenzrichtlinie",
+      "beleg": "Mehr Transparenz bei Gehältern, neue Berichtspflichten und strengere Vorgaben im Bewerbungsprozess: Die EU-Entgelttransparenzrichtlinie (EU) 2023/970, die bis zum 7. Juni 2026 in nationales Recht umgesetzt werden muss, bringt weitreichende Änderungen für Unternehmen in Deutschland mit sich.",
+      "beleg_quelle": "https://www.hamburger-software.de/blog/artikel/eu-entgelttransparenzrichtlinie-was-arbeitgeber-jetzt-wissen-muessen",
+      "beleg_quelle_name": "EU-Entgelttransparenzrichtlinie: Was Arbeitgeber jetzt wissen müssen",
+      "erstmals_gesehen": "2026-09-21",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-21"
+      ],
+      "quellen": [
+        "https://www.hamburger-software.de/blog/artikel/eu-entgelttransparenzrichtlinie-was-arbeitgeber-jetzt-wissen-muessen"
+      ],
+      "stichtag": "2026-06-07",
+      "stichtag_art": "Umsetzungsfrist",
+      "zuletzt_gesehen": "2026-09-21"
     },
     "foederalismusreform": {
       "anzeige": "Föderalismusreform",
@@ -59,16 +94,17 @@
       "beleg_quelle": "https://www.bundesrat.de/",
       "beleg_quelle_name": "Bundesrat – Homepage",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 6,
+      "erwaehnungen": 8,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://www.bundesrat.de/"
       ],
       "stichtag": "2006-09-01",
       "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
     },
     "foerderrichtlinie": {
       "anzeige": "Förderrichtlinie",
@@ -104,6 +140,23 @@
       "stichtag_art": "gilt ab",
       "zuletzt_gesehen": "2026-09-19"
     },
+    "gleichbehandlungsstellen": {
+      "anzeige": "Gleichbehandlungsstellen",
+      "beleg": "ung der neuen Richtlinien (EU) 2024/1499 und (EU) 2024/1500 über Standards der Gleichbehandlungsstellen, deren Umsetzungsfrist am 19. Juni 2026 endete.",
+      "beleg_quelle": "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026",
+      "beleg_quelle_name": "Newsletter ArbR / SL Employment 2/2026 | Luther Lawfirm",
+      "erstmals_gesehen": "2026-09-21",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-09-21"
+      ],
+      "quellen": [
+        "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026"
+      ],
+      "stichtag": "2026-06-19",
+      "stichtag_art": "Umsetzungsfrist",
+      "zuletzt_gesehen": "2026-09-21"
+    },
     "intelligenz": {
       "anzeige": "Intelligenz",
       "beleg": "Er gilt seit dem 1. August 2024. Einzelne Pflichten sind bereits in Kraft: Art. 4 (KI-Kompetenz für Anbieter und Betreiber) und Art. 5 (verbotene Praktiken) seit Februar 2025, die Pflichten für General-Purpose-AI-Modelle seit August 2025. Die Vollanwendung beginnt am 2. August 2026.",
@@ -127,33 +180,53 @@
       "beleg_quelle": "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html",
       "beleg_quelle_name": "BMF – Schreiben Lohnsteuer/Allgemeines",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 6,
+      "erwaehnungen": 8,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html"
       ],
       "stichtag": "2026-06-24",
       "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
+    },
+    "lohnzahlungszeitraum": {
+      "anzeige": "Lohnzahlungszeitraum",
+      "beleg": "Beim Steuerabzug vom Arbeitslohn sind die 2027er Änderungen erstmals auf den laufenden Arbeitslohn anzuwenden, der für einen nach dem 31. Dezember 2026 endenden Lohnzahlungszeitraum gezahlt wird, und auf sonstige Bezüge, die nach dem 31. Dezember 2026 zufließen.",
+      "beleg_quelle": "https://www.haufe.de/personal/entgelt/einkommensteuerreformgesetz-2027_78_696382.html",
+      "beleg_quelle_name": "Haufe – Personal → Das Bundeskabinett hat den Entwurf zur geplanten \"Steuerreform\" beschl",
+      "erstmals_gesehen": "2026-09-21",
+      "erwaehnungen": 2,
+      "laeufe": [
+        "2026-09-21"
+      ],
+      "quellen": [
+        "https://www.haufe.de/personal/entgelt/einkommensteuerreformgesetz-2027_78_696382.html"
+      ],
+      "stichtag": "2026-12-31",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-09-21"
     },
     "mindeststeuergesetz": {
       "anzeige": "Mindeststeuergesetz",
-      "beleg": "Die meisten Änderungen sollen ab 1. Januar 2027 anwendbar sein.",
-      "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
-      "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
+      "beleg": "Die globale Mindeststeuer wurde in Deutschland am 21.12.2023 durch das Mindeststeuergesetz umgesetzt und gilt erstmals für das Geschäftsjahr 2024. Knapp drei Jahre nach der Einführung und nach Abgabe der ersten Mindeststeuererklärungen ist nun das erste Verfahren in diesem Zusammenhang beim BFH anhängig.",
+      "beleg_quelle": "https://www.ey.com/de_de/technical/steuernachrichten/vor-der-sommerpause-der-stand-der-steuergesetzgebung-zur-jahresmitte-2026",
+      "beleg_quelle_name": "Vor der Sommerpause: Der Stand der Steuergesetzgebung zur ... - EY",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 3,
+      "erwaehnungen": 5,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
-        "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/"
+        "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
+        "https://www.ey.com/de_de/technical/steuernachrichten/vor-der-sommerpause-der-stand-der-steuergesetzgebung-zur-jahresmitte-2026"
       ],
-      "stichtag": "2027-01-01",
-      "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-19"
+      "stichtag": "2023-12-21",
+      "stichtag_art": "Umsetzungsfrist",
+      "zuletzt_gesehen": "2026-09-21"
     },
     "onestopshopverfahren": {
       "anzeige": "One-Stop-Shop-Verfahren",
@@ -161,16 +234,17 @@
       "beleg_quelle": "https://www.husemannpartner.de/aktuelles/jahressteuergesetz-2026",
       "beleg_quelle_name": "Jahressteuergesetz 2026 - Husemann",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 3,
+      "erwaehnungen": 4,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://www.husemannpartner.de/aktuelles/jahressteuergesetz-2026"
       ],
       "stichtag": "2027-01-01",
       "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
     },
     "organschaft": {
       "anzeige": "Organschaft",
@@ -195,16 +269,17 @@
       "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
       "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 3,
+      "erwaehnungen": 4,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/"
       ],
       "stichtag": "2029-12-31",
       "stichtag_art": "Übergangsfrist",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
     },
     "regulierung": {
       "anzeige": "Regulierung",
@@ -229,16 +304,17 @@
       "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
       "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/"
       ],
       "stichtag": "2026-08-02",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
     },
     "steuerpflichtige": {
       "anzeige": "Steuerpflichtige",
@@ -246,16 +322,17 @@
       "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
       "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 3,
+      "erwaehnungen": 4,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/"
       ],
       "stichtag": "2030-01-01",
       "stichtag_art": "Übergangsfrist",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
     },
     "steuerungsmechanismen": {
       "anzeige": "Steuerungsmechanismen",
@@ -263,16 +340,17 @@
       "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
       "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/"
       ],
       "stichtag": "2025-08-02",
       "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
     },
     "taetigkeitsstaette": {
       "anzeige": "Tätigkeitsstätte",
@@ -280,16 +358,17 @@
       "beleg_quelle": "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html",
       "beleg_quelle_name": "Geplante lohnsteuerliche Änderungen laut Jahressteuergesetz 2026",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html"
       ],
       "stichtag": "2026-12-31",
       "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
     },
     "verbraucherkreditrichtlinie": {
       "anzeige": "Verbraucherkreditrichtlinie",
@@ -297,16 +376,17 @@
       "beleg_quelle": "https://www.bundesrat.de/SharedDocs/termine/DE/presse/2026/20260923-va.html",
       "beleg_quelle_name": "Bundesrat – Homepage → Terminhinweis Vermittlungsausschuss tagt zur Schuldnerberatung",
       "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 6,
+      "erwaehnungen": 8,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-19",
+        "2026-09-21"
       ],
       "quellen": [
         "https://www.bundesrat.de/SharedDocs/termine/DE/presse/2026/20260923-va.html"
       ],
       "stichtag": "2025-11-20",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-21"
     },
     "vollanwendung": {
       "anzeige": "Vollanwendung",
