@@ -1,409 +1,114 @@
 {
   "_hinweis": "Gedaechtnis des Themenradars. hot_topics.py schreibt diese Datei bei jedem Lauf fort, der Workflow committet sie zurueck - nicht von Hand pflegen. Sie startet bewusst leer: ein Vorbefuellen aus den bereits versendeten Newsletter-HTMLs war erprobt, lieferte aber unzuverlaessige Zuordnungen, weil diese Dateien keine saubere Satzstruktur haben (Tabellenzellen und Aufzaehlungen ohne Satzzeichen). Gegen echte Quelltexte greift die Erkennung deutlich besser; ab dem ersten Lauf fuellt sich die Datei von selbst.",
-  "aktualisiert": "2026-09-21",
+  "aktualisiert": "2026-09-28",
   "themen": {
-    "abwehrfaehigkeit": {
-      "anzeige": "Abwehrfähigkeit",
-      "beleg": "Das Gesetz der Bundesregierung ist am 6. Dezember 2025 in Kraft getreten.",
-      "beleg_quelle": "https://www.bundesregierung.de/breg-de/aktuelles/nis-2-richtlinie-deutschland-2373174",
-      "beleg_quelle_name": "Umsetzung der NIS-2-Richtlinie beschlossen - Bundesregierung.de",
-      "erstmals_gesehen": "2026-09-21",
-      "erwaehnungen": 1,
-      "laeufe": [
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.bundesregierung.de/breg-de/aktuelles/nis-2-richtlinie-deutschland-2373174"
-      ],
-      "stichtag": "2025-12-06",
-      "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "arbeitgebers": {
-      "anzeige": "Arbeitgebers",
-      "beleg": "Nach Auffassung des Gerichts wurde das Arbeitsverhältnis durch die Kündigung des Arbeitgebers vom 24. November 2025 wirksam zum 31. Januar 2026 beendet.",
-      "beleg_quelle": "https://www.haufe.de/personal/arbeitsrecht/urteil-kuendigung-wegen-fuehrerscheinentzug_76_694732.html",
-      "beleg_quelle_name": "Urteil: Kündigung wegen Führerscheinentzug | Personal",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 3,
-      "laeufe": [
-        "2026-09-19"
-      ],
-      "quellen": [
-        "https://www.haufe.de/personal/arbeitsrecht/urteil-kuendigung-wegen-fuehrerscheinentzug_76_694732.html"
-      ],
-      "stichtag": "2025-11-24",
-      "stichtag_art": "gilt ab",
-      "zuletzt_gesehen": "2026-09-19"
-    },
-    "beschlossen": {
-      "anzeige": "Beschlossen",
-      "beleg": "Beschlossen; ab 27.09.2026 verbindlich anzuwenden",
-      "beleg_quelle": "https://intep.com/ratgeber/empco-richtlinie/",
-      "beleg_quelle_name": "EmpCo-Richtlinie: Pflichten & Umsetzung 2026",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
-      "laeufe": [
-        "2026-09-19"
-      ],
-      "quellen": [
-        "https://intep.com/ratgeber/empco-richtlinie/"
-      ],
-      "stichtag": "2026-09-27",
-      "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-19"
-    },
-    "empcorichtlinie": {
-      "anzeige": "EmpCo-Richtlinie",
-      "beleg": "Die EmpCo-Richtlinie ist beschlossen, in Kraft und ab dem 27. September 2026 verbindlich anzuwenden.",
-      "beleg_quelle": "https://intep.com/ratgeber/empco-richtlinie/",
-      "beleg_quelle_name": "EmpCo-Richtlinie: Pflichten & Umsetzung 2026",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
-      "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://intep.com/ratgeber/empco-richtlinie/"
-      ],
-      "stichtag": "2026-09-27",
-      "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "entgelttransparenzrichtlinie": {
-      "anzeige": "Entgelttransparenzrichtlinie",
-      "beleg": "Mehr Transparenz bei Gehältern, neue Berichtspflichten und strengere Vorgaben im Bewerbungsprozess: Die EU-Entgelttransparenzrichtlinie (EU) 2023/970, die bis zum 7. Juni 2026 in nationales Recht umgesetzt werden muss, bringt weitreichende Änderungen für Unternehmen in Deutschland mit sich.",
-      "beleg_quelle": "https://www.hamburger-software.de/blog/artikel/eu-entgelttransparenzrichtlinie-was-arbeitgeber-jetzt-wissen-muessen",
-      "beleg_quelle_name": "EU-Entgelttransparenzrichtlinie: Was Arbeitgeber jetzt wissen müssen",
-      "erstmals_gesehen": "2026-09-21",
-      "erwaehnungen": 1,
-      "laeufe": [
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.hamburger-software.de/blog/artikel/eu-entgelttransparenzrichtlinie-was-arbeitgeber-jetzt-wissen-muessen"
-      ],
-      "stichtag": "2026-06-07",
-      "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "foederalismusreform": {
-      "anzeige": "Föderalismusreform",
-      "beleg": "Vor 20 Jahren, am 1. September 2006, trat die Föderalismusreform I in Kraft.",
-      "beleg_quelle": "https://www.bundesrat.de/",
-      "beleg_quelle_name": "Bundesrat – Homepage",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 8,
-      "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.bundesrat.de/"
-      ],
-      "stichtag": "2006-09-01",
-      "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "foerderrichtlinie": {
-      "anzeige": "Förderrichtlinie",
-      "beleg": "ist am 19. Mai 2026 in Kraft getreten.",
-      "beleg_quelle": "https://www.lohnsteuer-kompakt.de/steuerwissen/bafa-foerderkompass-2026-foerderprogramme-im-ueberblick/",
-      "beleg_quelle_name": "BAFA Förderkompass 2026: Förderprogramme im Überblick",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 3,
-      "laeufe": [
-        "2026-09-19"
-      ],
-      "quellen": [
-        "https://www.lohnsteuer-kompakt.de/steuerwissen/bafa-foerderkompass-2026-foerderprogramme-im-ueberblick/"
-      ],
-      "stichtag": "2026-05-19",
-      "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-19"
-    },
-    "generalpurposeaimodelle": {
-      "anzeige": "General-Purpose-AI-Modelle",
-      "beleg": "Ab dem 2. August 2026 gilt die Verordnung vollständig, einschließlich der Hochrisiko-KI-Pflichten für Systeme nach Anhang III.",
-      "beleg_quelle": "https://www.secjur.com/blog/eu-ai-act",
-      "beleg_quelle_name": "EU AI Act im Mai 2026: Pflichten, Risikoklassen und Stand - SECJUR",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
-      "laeufe": [
-        "2026-09-19"
-      ],
-      "quellen": [
-        "https://www.secjur.com/blog/eu-ai-act"
-      ],
-      "stichtag": "2026-08-02",
-      "stichtag_art": "gilt ab",
-      "zuletzt_gesehen": "2026-09-19"
-    },
     "gleichbehandlungsstellen": {
       "anzeige": "Gleichbehandlungsstellen",
       "beleg": "ung der neuen Richtlinien (EU) 2024/1499 und (EU) 2024/1500 über Standards der Gleichbehandlungsstellen, deren Umsetzungsfrist am 19. Juni 2026 endete.",
       "beleg_quelle": "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026",
       "beleg_quelle_name": "Newsletter ArbR / SL Employment 2/2026 | Luther Lawfirm",
-      "erstmals_gesehen": "2026-09-21",
+      "erstmals_gesehen": "2026-09-28",
       "erwaehnungen": 1,
       "laeufe": [
-        "2026-09-21"
+        "2026-09-28"
       ],
       "quellen": [
         "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026"
       ],
+      "regeln": 3,
       "stichtag": "2026-06-19",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "intelligenz": {
-      "anzeige": "Intelligenz",
-      "beleg": "Er gilt seit dem 1. August 2024. Einzelne Pflichten sind bereits in Kraft: Art. 4 (KI-Kompetenz für Anbieter und Betreiber) und Art. 5 (verbotene Praktiken) seit Februar 2025, die Pflichten für General-Purpose-AI-Modelle seit August 2025. Die Vollanwendung beginnt am 2. August 2026.",
-      "beleg_quelle": "https://www.secjur.com/blog/eu-ai-act",
-      "beleg_quelle_name": "EU AI Act im Mai 2026: Pflichten, Risikoklassen und Stand - SECJUR",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
-      "laeufe": [
-        "2026-09-19"
-      ],
-      "quellen": [
-        "https://www.secjur.com/blog/eu-ai-act"
-      ],
-      "stichtag": "2024-08-01",
-      "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-28"
     },
     "lohnsteuerabzugsverfahren": {
       "anzeige": "Lohnsteuerabzugsverfahren",
       "beleg": "Die Verwaltung ändert mit dem BMF-Schreiben vom 24. Juni 2026 das BMF-Schreiben vom 14. August 2025 zur Vorsorgepauschale im Lohnsteuerabzugsverfahren ab 2026. Das neue BMF-Schreiben betrifft die Vorsorgepauschale im Lohnsteuerabzugsverfahren bei gesetzlich krankenversicherten Dienstordnungsangestellten und ist ab dem 1. Januar 2026 anzuwenden.",
       "beleg_quelle": "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html",
       "beleg_quelle_name": "BMF – Schreiben Lohnsteuer/Allgemeines",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 8,
+      "erstmals_gesehen": "2026-09-28",
+      "erwaehnungen": 2,
       "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
+        "2026-09-28"
       ],
       "quellen": [
         "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html"
       ],
+      "regeln": 3,
       "stichtag": "2026-06-24",
       "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "lohnzahlungszeitraum": {
-      "anzeige": "Lohnzahlungszeitraum",
-      "beleg": "Beim Steuerabzug vom Arbeitslohn sind die 2027er Änderungen erstmals auf den laufenden Arbeitslohn anzuwenden, der für einen nach dem 31. Dezember 2026 endenden Lohnzahlungszeitraum gezahlt wird, und auf sonstige Bezüge, die nach dem 31. Dezember 2026 zufließen.",
-      "beleg_quelle": "https://www.haufe.de/personal/entgelt/einkommensteuerreformgesetz-2027_78_696382.html",
-      "beleg_quelle_name": "Haufe – Personal → Das Bundeskabinett hat den Entwurf zur geplanten \"Steuerreform\" beschl",
-      "erstmals_gesehen": "2026-09-21",
-      "erwaehnungen": 2,
-      "laeufe": [
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.haufe.de/personal/entgelt/einkommensteuerreformgesetz-2027_78_696382.html"
-      ],
-      "stichtag": "2026-12-31",
-      "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-21"
+      "zuletzt_gesehen": "2026-09-28"
     },
     "mindeststeuergesetz": {
       "anzeige": "Mindeststeuergesetz",
       "beleg": "Die globale Mindeststeuer wurde in Deutschland am 21.12.2023 durch das Mindeststeuergesetz umgesetzt und gilt erstmals für das Geschäftsjahr 2024. Knapp drei Jahre nach der Einführung und nach Abgabe der ersten Mindeststeuererklärungen ist nun das erste Verfahren in diesem Zusammenhang beim BFH anhängig.",
       "beleg_quelle": "https://www.ey.com/de_de/technical/steuernachrichten/vor-der-sommerpause-der-stand-der-steuergesetzgebung-zur-jahresmitte-2026",
       "beleg_quelle_name": "Vor der Sommerpause: Der Stand der Steuergesetzgebung zur ... - EY",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 5,
+      "erstmals_gesehen": "2026-09-28",
+      "erwaehnungen": 1,
       "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
+        "2026-09-28"
       ],
       "quellen": [
-        "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
         "https://www.ey.com/de_de/technical/steuernachrichten/vor-der-sommerpause-der-stand-der-steuergesetzgebung-zur-jahresmitte-2026"
       ],
+      "regeln": 3,
       "stichtag": "2023-12-21",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "onestopshopverfahren": {
-      "anzeige": "One-Stop-Shop-Verfahren",
-      "beleg": "Für Lieferungen von Gas, Elektrizität, Wärme und Kälte soll zwischen dem 01.01.2027 und dem 30.06.2028 das One-Stop-Shop-Verfahren für innergemeinschaftliche Fernverkäufe anwendbar sein.",
-      "beleg_quelle": "https://www.husemannpartner.de/aktuelles/jahressteuergesetz-2026",
-      "beleg_quelle_name": "Jahressteuergesetz 2026 - Husemann",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 4,
-      "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.husemannpartner.de/aktuelles/jahressteuergesetz-2026"
-      ],
-      "stichtag": "2027-01-01",
-      "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-21"
+      "zuletzt_gesehen": "2026-09-28"
     },
     "organschaft": {
       "anzeige": "Organschaft",
-      "beleg": "Die Erklärung ist ab dem 1. Juli 2028 möglich; Anwendung des neuen Rechts erstmals ab dem 1. Januar 2029. Wir veröffentlichen hierzu im Oktober 2026 einen eigenen Newsbeitrag.",
+      "beleg": "Die Erklärung ist ab dem 1. Juli 2028 möglich; Anwendung des neuen Rechts erstmals ab dem 1. Januar 2030. Wir veröffentlichen hierzu im Oktober 2026 einen eigenen Newsbeitrag.",
       "beleg_quelle": "https://www.dhpg.de/de/newsroom/blog/jahressteuergesetz2026-kompakter-ueberblick-zu-den-zentralen-steueraenderungen",
       "beleg_quelle_name": "Jahressteuergesetz 2026: Kompakter Überblick zu den zentralen... - dhpg",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 3,
+      "erstmals_gesehen": "2026-09-28",
+      "erwaehnungen": 1,
       "laeufe": [
-        "2026-09-19"
+        "2026-09-28"
       ],
       "quellen": [
         "https://www.dhpg.de/de/newsroom/blog/jahressteuergesetz2026-kompakter-ueberblick-zu-den-zentralen-steueraenderungen"
       ],
+      "regeln": 3,
       "stichtag": "2028-07-01",
       "stichtag_art": "erstmals ab",
-      "zuletzt_gesehen": "2026-09-19"
-    },
-    "organschaften": {
-      "anzeige": "Organschaften",
-      "beleg": "Unklar ist noch die Übergangsregelung für zu diesem Zeitpunkt bereits bestehende Organschaften; ggf. muss ein Antrag gestellt werden, um die Anerkennung über den 31. Dezember 2029 hinaus zu sichern.",
-      "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
-      "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 4,
-      "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/"
-      ],
-      "stichtag": "2029-12-31",
-      "stichtag_art": "Übergangsfrist",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "regulierung": {
-      "anzeige": "Regulierung",
-      "beleg": "Er gilt seit dem 1. August 2024, einzelne Pflichten sind bereits anwendbar.",
-      "beleg_quelle": "https://www.secjur.com/blog/eu-ai-act",
-      "beleg_quelle_name": "EU AI Act im Mai 2026: Pflichten, Risikoklassen und Stand - SECJUR",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 1,
-      "laeufe": [
-        "2026-09-19"
-      ],
-      "quellen": [
-        "https://www.secjur.com/blog/eu-ai-act"
-      ],
-      "stichtag": "2024-08-01",
-      "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-28"
     },
     "schutzniveau": {
       "anzeige": "Schutzniveau",
       "beleg": "Entsprechend der gestaffelten Umsetzungsfristen, sollte zum 2. August 2026 das Kernstück des AI Acts, die umfangreichen Pflichten bei der Nutzung von Hochrisiko-KI, zur Anwendung kommen.",
       "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
       "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
+      "erstmals_gesehen": "2026-09-28",
+      "erwaehnungen": 1,
       "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
+        "2026-09-28"
       ],
       "quellen": [
         "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/"
       ],
+      "regeln": 3,
       "stichtag": "2026-08-02",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "steuerpflichtige": {
-      "anzeige": "Steuerpflichtige",
-      "beleg": "Und die Übergangsfrist ist lang und wurde schließlich noch einmal gestreckt: Das Ganze soll erst ab 1. Januar 2030 gelten.",
-      "beleg_quelle": "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/",
-      "beleg_quelle_name": "Gesetzentwurf für ein Jahressteuergesetz 2026 - RÖDL",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 4,
-      "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.roedl.com/insights/gesetzentwurf-jahressteuergesetz-2026/"
-      ],
-      "stichtag": "2030-01-01",
-      "stichtag_art": "Übergangsfrist",
-      "zuletzt_gesehen": "2026-09-21"
+      "zuletzt_gesehen": "2026-09-28"
     },
     "steuerungsmechanismen": {
       "anzeige": "Steuerungsmechanismen",
       "beleg": "Zum 2. Februar 2025 traten allgemeine Bestimmungen sowie Verbote im Rahmen der KI Nutzung und zum 2. August 2025 Regeln zur KI mit allgemeinem Verwendungszweck sowie zu Steuerungsmechanismen in Kraft.",
       "beleg_quelle": "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/",
       "beleg_quelle_name": "AI Act: Veränderte Fristen, gleicher Handlungsdruck - Kliemt.blog",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 3,
+      "erstmals_gesehen": "2026-09-28",
+      "erwaehnungen": 1,
       "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
+        "2026-09-28"
       ],
       "quellen": [
         "https://kliemt.blog/2026/09/02/ai-act-veraenderte-fristen-gleicher-handlungsdruck/"
       ],
+      "regeln": 3,
       "stichtag": "2025-08-02",
       "stichtag_art": "Inkrafttreten",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "taetigkeitsstaette": {
-      "anzeige": "Tätigkeitsstätte",
-      "beleg": "Die Neuregelung soll erstmals auf Zuordnungen anzuwenden sein, die nach dem 31. Dezember 2026 dienst- oder arbeitsrechtlich festgelegt werden (§ 52 Abs. 16b EStG-E).",
-      "beleg_quelle": "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html",
-      "beleg_quelle_name": "Geplante lohnsteuerliche Änderungen laut Jahressteuergesetz 2026",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
-      "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.haufe.de/personal/entgelt/jahressteuergesetz-2026-aenderungen-fuer-hr_78_689154.html"
-      ],
-      "stichtag": "2026-12-31",
-      "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "verbraucherkreditrichtlinie": {
-      "anzeige": "Verbraucherkreditrichtlinie",
-      "beleg": "Die Richtlinie war ursprünglich bis zum 20. November 2025 umzusetzen.",
-      "beleg_quelle": "https://www.bundesrat.de/SharedDocs/termine/DE/presse/2026/20260923-va.html",
-      "beleg_quelle_name": "Bundesrat – Homepage → Terminhinweis Vermittlungsausschuss tagt zur Schuldnerberatung",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 8,
-      "laeufe": [
-        "2026-09-19",
-        "2026-09-21"
-      ],
-      "quellen": [
-        "https://www.bundesrat.de/SharedDocs/termine/DE/presse/2026/20260923-va.html"
-      ],
-      "stichtag": "2025-11-20",
-      "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-21"
-    },
-    "vollanwendung": {
-      "anzeige": "Vollanwendung",
-      "beleg": "Vollanwendung ab 2. August 2026. Art. 4 (KI-Kompetenz) und Art. 5 (verbotene Praktiken) sind seit Februar 2025 anwendbar, GPAI-Pflichten seit August 2025. Wer KI-Kompetenz nicht dokumentiert hat, ist bereits in der Pflichtverletzung.",
-      "beleg_quelle": "https://www.secjur.com/blog/eu-ai-act",
-      "beleg_quelle_name": "EU AI Act im Mai 2026: Pflichten, Risikoklassen und Stand - SECJUR",
-      "erstmals_gesehen": "2026-09-19",
-      "erwaehnungen": 2,
-      "laeufe": [
-        "2026-09-19"
-      ],
-      "quellen": [
-        "https://www.secjur.com/blog/eu-ai-act"
-      ],
-      "stichtag": "2026-08-02",
-      "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-19"
+      "zuletzt_gesehen": "2026-09-28"
     }
   },
   "version": 2
