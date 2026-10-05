@@ -1,6 +1,6 @@
 {
   "_hinweis": "Gedaechtnis des Themenradars. hot_topics.py schreibt diese Datei bei jedem Lauf fort, der Workflow committet sie zurueck - nicht von Hand pflegen. Sie startet bewusst leer: ein Vorbefuellen aus den bereits versendeten Newsletter-HTMLs war erprobt, lieferte aber unzuverlaessige Zuordnungen, weil diese Dateien keine saubere Satzstruktur haben (Tabellenzellen und Aufzaehlungen ohne Satzzeichen). Gegen echte Quelltexte greift die Erkennung deutlich besser; ab dem ersten Lauf fuellt sich die Datei von selbst.",
-  "aktualisiert": "2026-09-28",
+  "aktualisiert": "2026-10-05",
   "themen": {
     "gleichbehandlungsstellen": {
       "anzeige": "Gleichbehandlungsstellen",
@@ -8,9 +8,10 @@
       "beleg_quelle": "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026",
       "beleg_quelle_name": "Newsletter ArbR / SL Employment 2/2026 | Luther Lawfirm",
       "erstmals_gesehen": "2026-09-28",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
-        "2026-09-28"
+        "2026-09-28",
+        "2026-10-05"
       ],
       "quellen": [
         "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026"
@@ -18,7 +19,7 @@
       "regeln": 3,
       "stichtag": "2026-06-19",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-28"
+      "zuletzt_gesehen": "2026-10-05"
     },
     "lohnsteuerabzugsverfahren": {
       "anzeige": "Lohnsteuerabzugsverfahren",
@@ -26,9 +27,10 @@
       "beleg_quelle": "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html",
       "beleg_quelle_name": "BMF – Schreiben Lohnsteuer/Allgemeines",
       "erstmals_gesehen": "2026-09-28",
-      "erwaehnungen": 2,
+      "erwaehnungen": 4,
       "laeufe": [
-        "2026-09-28"
+        "2026-09-28",
+        "2026-10-05"
       ],
       "quellen": [
         "https://www.bundesfinanzministerium.de/Web/DE/Themen/Steuern/Steuerarten/Lohnsteuer/BMF_Schreiben_Allgemeines/bmf_schreiben_allgemeines.html"
@@ -36,7 +38,25 @@
       "regeln": 3,
       "stichtag": "2026-06-24",
       "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-09-28"
+      "zuletzt_gesehen": "2026-10-05"
+    },
+    "lohnsteuerrichtlinie": {
+      "anzeige": "Lohnsteuer-richtlinie",
+      "beleg": ", bestehen keine Bedenken, die höhten Mindestbeträge im Vorgriff auf die neuen Lohnsteuer-Richtlinien bereits rückwirkend ab 1.1.2026 anzuwenden und so mögliche Korrekturen bereits durchgeführter Lohnabrechnungen zu verringern.",
+      "beleg_quelle": "https://www.haufe.de/steuern/finanzverwaltung/geplante-aenderung-der-lohnsteuer-richtlinien_164_694786.html",
+      "beleg_quelle_name": "Geplante Änderung der Lohnsteuer-Richtlinien | Steuern",
+      "erstmals_gesehen": "2026-10-05",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-10-05"
+      ],
+      "quellen": [
+        "https://www.haufe.de/steuern/finanzverwaltung/geplante-aenderung-der-lohnsteuer-richtlinien_164_694786.html"
+      ],
+      "regeln": 3,
+      "stichtag": "2026-01-01",
+      "stichtag_art": "Anwendung ab",
+      "zuletzt_gesehen": "2026-10-05"
     },
     "mindeststeuergesetz": {
       "anzeige": "Mindeststeuergesetz",
@@ -44,9 +64,10 @@
       "beleg_quelle": "https://www.ey.com/de_de/technical/steuernachrichten/vor-der-sommerpause-der-stand-der-steuergesetzgebung-zur-jahresmitte-2026",
       "beleg_quelle_name": "Vor der Sommerpause: Der Stand der Steuergesetzgebung zur ... - EY",
       "erstmals_gesehen": "2026-09-28",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
-        "2026-09-28"
+        "2026-09-28",
+        "2026-10-05"
       ],
       "quellen": [
         "https://www.ey.com/de_de/technical/steuernachrichten/vor-der-sommerpause-der-stand-der-steuergesetzgebung-zur-jahresmitte-2026"
@@ -54,7 +75,7 @@
       "regeln": 3,
       "stichtag": "2023-12-21",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-09-28"
+      "zuletzt_gesehen": "2026-10-05"
     },
     "organschaft": {
       "anzeige": "Organschaft",
