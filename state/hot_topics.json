@@ -1,17 +1,36 @@
 {
   "_hinweis": "Gedaechtnis des Themenradars. hot_topics.py schreibt diese Datei bei jedem Lauf fort, der Workflow committet sie zurueck - nicht von Hand pflegen. Sie startet bewusst leer: ein Vorbefuellen aus den bereits versendeten Newsletter-HTMLs war erprobt, lieferte aber unzuverlaessige Zuordnungen, weil diese Dateien keine saubere Satzstruktur haben (Tabellenzellen und Aufzaehlungen ohne Satzzeichen). Gegen echte Quelltexte greift die Erkennung deutlich besser; ab dem ersten Lauf fuellt sich die Datei von selbst.",
-  "aktualisiert": "2026-10-05",
+  "aktualisiert": "2026-10-12",
   "themen": {
+    "besteuerungstatbestaende": {
+      "anzeige": "Besteuerungstatbestände",
+      "beleg": "Aus Gründen des Vertrauensschutzes soll die Neuregelung erstmals für Besteuerungstatbestände nach §§ 16 und 17 EStG gelten, die nach dem 31. Dezember 2026 eintreten.",
+      "beleg_quelle": "https://www.mtrlegal.com/bundesrat-fordert-aenderungen-am-jahressteuergesetz-2026/",
+      "beleg_quelle_name": "Bundesrat fordert Änderungen am Jahressteuergesetz 2026",
+      "erstmals_gesehen": "2026-10-12",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-10-12"
+      ],
+      "quellen": [
+        "https://www.mtrlegal.com/bundesrat-fordert-aenderungen-am-jahressteuergesetz-2026/"
+      ],
+      "regeln": 3,
+      "stichtag": "2026-12-31",
+      "stichtag_art": "erstmals ab",
+      "zuletzt_gesehen": "2026-10-12"
+    },
     "gleichbehandlungsstellen": {
       "anzeige": "Gleichbehandlungsstellen",
       "beleg": "ung der neuen Richtlinien (EU) 2024/1499 und (EU) 2024/1500 über Standards der Gleichbehandlungsstellen, deren Umsetzungsfrist am 19. Juni 2026 endete.",
       "beleg_quelle": "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026",
       "beleg_quelle_name": "Newsletter ArbR / SL Employment 2/2026 | Luther Lawfirm",
       "erstmals_gesehen": "2026-09-28",
-      "erwaehnungen": 2,
+      "erwaehnungen": 3,
       "laeufe": [
         "2026-09-28",
-        "2026-10-05"
+        "2026-10-05",
+        "2026-10-12"
       ],
       "quellen": [
         "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026"
@@ -19,7 +38,7 @@
       "regeln": 3,
       "stichtag": "2026-06-19",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-10-05"
+      "zuletzt_gesehen": "2026-10-12"
     },
     "lohnsteuerabzugsverfahren": {
       "anzeige": "Lohnsteuerabzugsverfahren",
@@ -46,9 +65,10 @@
       "beleg_quelle": "https://www.haufe.de/steuern/finanzverwaltung/geplante-aenderung-der-lohnsteuer-richtlinien_164_694786.html",
       "beleg_quelle_name": "Geplante Änderung der Lohnsteuer-Richtlinien | Steuern",
       "erstmals_gesehen": "2026-10-05",
-      "erwaehnungen": 1,
+      "erwaehnungen": 2,
       "laeufe": [
-        "2026-10-05"
+        "2026-10-05",
+        "2026-10-12"
       ],
       "quellen": [
         "https://www.haufe.de/steuern/finanzverwaltung/geplante-aenderung-der-lohnsteuer-richtlinien_164_694786.html"
@@ -56,7 +76,7 @@
       "regeln": 3,
       "stichtag": "2026-01-01",
       "stichtag_art": "Anwendung ab",
-      "zuletzt_gesehen": "2026-10-05"
+      "zuletzt_gesehen": "2026-10-12"
     },
     "mindeststeuergesetz": {
       "anzeige": "Mindeststeuergesetz",
