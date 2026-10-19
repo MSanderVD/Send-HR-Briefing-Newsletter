@@ -1,7 +1,43 @@
 {
   "_hinweis": "Gedaechtnis des Themenradars. hot_topics.py schreibt diese Datei bei jedem Lauf fort, der Workflow committet sie zurueck - nicht von Hand pflegen. Sie startet bewusst leer: ein Vorbefuellen aus den bereits versendeten Newsletter-HTMLs war erprobt, lieferte aber unzuverlaessige Zuordnungen, weil diese Dateien keine saubere Satzstruktur haben (Tabellenzellen und Aufzaehlungen ohne Satzzeichen). Gegen echte Quelltexte greift die Erkennung deutlich besser; ab dem ersten Lauf fuellt sich die Datei von selbst.",
-  "aktualisiert": "2026-10-12",
+  "aktualisiert": "2026-10-19",
   "themen": {
+    "akkreditierung": {
+      "anzeige": "Akkreditierung",
+      "beleg": "Bitte melden Sie sich bis spätestens Mittwoch, 4. November 2026, 23.59 Uhr unter folgendem Link an:",
+      "beleg_quelle": "https://www.bundesrat.de/SharedDocs/termine/DE/int/nato-pv/20261120_23-natopv.html",
+      "beleg_quelle_name": "Bundesrat – Homepage → Terminhinweis 72. Jahrestagung der Parlamentarischen Versammlung der N",
+      "erstmals_gesehen": "2026-10-19",
+      "erwaehnungen": 2,
+      "laeufe": [
+        "2026-10-19"
+      ],
+      "quellen": [
+        "https://www.bundesrat.de/SharedDocs/termine/DE/int/nato-pv/20261120_23-natopv.html"
+      ],
+      "regeln": 3,
+      "stichtag": "2026-11-04",
+      "stichtag_art": "Frist",
+      "zuletzt_gesehen": "2026-10-19"
+    },
+    "bestandssysteme": {
+      "anzeige": "Bestandssysteme",
+      "beleg": "Für generative Bestandssysteme gilt im Rahmen der Markierungs- und Kennzeichnungspflichten ein gesonderter Stichtag am 2. Dezember 2026. Die Offenlegungspflicht für Betreiber im Zusammenhang mit Deepfakes bleibt demgegenüber beim 2. August 2026. Auc",
+      "beleg_quelle": "https://www.mtrlegal.com/ki-im-arbeitsverhaeltnis-neue-eu-fristen-fuer-arbeitgeber/",
+      "beleg_quelle_name": "KI im Arbeitsverhältnis: neue EU-Fristen für Arbeitgeber",
+      "erstmals_gesehen": "2026-10-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-10-19"
+      ],
+      "quellen": [
+        "https://www.mtrlegal.com/ki-im-arbeitsverhaeltnis-neue-eu-fristen-fuer-arbeitgeber/"
+      ],
+      "regeln": 3,
+      "stichtag": "2026-12-02",
+      "stichtag_art": "Stichtag",
+      "zuletzt_gesehen": "2026-10-19"
+    },
     "besteuerungstatbestaende": {
       "anzeige": "Besteuerungstatbestände",
       "beleg": "Aus Gründen des Vertrauensschutzes soll die Neuregelung erstmals für Besteuerungstatbestände nach §§ 16 und 17 EStG gelten, die nach dem 31. Dezember 2026 eintreten.",
@@ -20,17 +56,36 @@
       "stichtag_art": "erstmals ab",
       "zuletzt_gesehen": "2026-10-12"
     },
+    "betriebspruefung": {
+      "anzeige": "Betriebsprüfung",
+      "beleg": "Bei entsprechender Befreiung sind spätestens ab dem 1. Januar 2027 die Unterlagen elektronisch zu führen.",
+      "beleg_quelle": "https://www.haufe.de/personal/entgelt/elektronische-entgeltunterlagen_78_565270.html",
+      "beleg_quelle_name": "Haufe – Personal → Bis Ende 2026 können sich Unternehmen noch davon befreien lassen, ergä",
+      "erstmals_gesehen": "2026-10-19",
+      "erwaehnungen": 2,
+      "laeufe": [
+        "2026-10-19"
+      ],
+      "quellen": [
+        "https://www.haufe.de/personal/entgelt/elektronische-entgeltunterlagen_78_565270.html"
+      ],
+      "regeln": 3,
+      "stichtag": "2027-01-01",
+      "stichtag_art": "Frist",
+      "zuletzt_gesehen": "2026-10-19"
+    },
     "gleichbehandlungsstellen": {
       "anzeige": "Gleichbehandlungsstellen",
       "beleg": "ung der neuen Richtlinien (EU) 2024/1499 und (EU) 2024/1500 über Standards der Gleichbehandlungsstellen, deren Umsetzungsfrist am 19. Juni 2026 endete.",
       "beleg_quelle": "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026",
       "beleg_quelle_name": "Newsletter ArbR / SL Employment 2/2026 | Luther Lawfirm",
       "erstmals_gesehen": "2026-09-28",
-      "erwaehnungen": 3,
+      "erwaehnungen": 4,
       "laeufe": [
         "2026-09-28",
         "2026-10-05",
-        "2026-10-12"
+        "2026-10-12",
+        "2026-10-19"
       ],
       "quellen": [
         "https://www.luther-lawfirm.com/newsroom/newsletter/detail/newsletter-arbr-sl-employment-2-2026"
@@ -38,7 +93,25 @@
       "regeln": 3,
       "stichtag": "2026-06-19",
       "stichtag_art": "Umsetzungsfrist",
-      "zuletzt_gesehen": "2026-10-12"
+      "zuletzt_gesehen": "2026-10-19"
+    },
+    "inkrafttreten": {
+      "anzeige": "Inkrafttreten",
+      "beleg": "Der geänderte Art. 4 sowie der neue Art. 4a gelten bereits seit dem Inkrafttreten der Reform am 27. Juli 2026; zudem wurde die Geltung der Art. 102 bis 110 vorgezogen.",
+      "beleg_quelle": "https://www.mtrlegal.com/ki-im-arbeitsverhaeltnis-neue-eu-fristen-fuer-arbeitgeber/",
+      "beleg_quelle_name": "KI im Arbeitsverhältnis: neue EU-Fristen für Arbeitgeber",
+      "erstmals_gesehen": "2026-10-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-10-19"
+      ],
+      "quellen": [
+        "https://www.mtrlegal.com/ki-im-arbeitsverhaeltnis-neue-eu-fristen-fuer-arbeitgeber/"
+      ],
+      "regeln": 3,
+      "stichtag": "2026-07-27",
+      "stichtag_art": "Inkrafttreten",
+      "zuletzt_gesehen": "2026-10-19"
     },
     "lohnsteuerabzugsverfahren": {
       "anzeige": "Lohnsteuerabzugsverfahren",
@@ -58,6 +131,24 @@
       "stichtag": "2026-06-24",
       "stichtag_art": "Anwendung ab",
       "zuletzt_gesehen": "2026-10-05"
+    },
+    "lohnsteuerhilfevereine": {
+      "anzeige": "Lohnsteuerhilfevereine",
+      "beleg": "Die erweiterte Beratungsbefugnis für Lohnsteuerhilfevereine gilt ab dem 1. September 2026 und öffnet die Beratung für mehr Steuerpflichtige.",
+      "beleg_quelle": "https://www.aktuell-verein.de/blog/aktuelle-beitraege/",
+      "beleg_quelle_name": "Steuerblog | Aktuelle Beiträge vom Lohnsteuerhilfeverein",
+      "erstmals_gesehen": "2026-10-19",
+      "erwaehnungen": 1,
+      "laeufe": [
+        "2026-10-19"
+      ],
+      "quellen": [
+        "https://www.aktuell-verein.de/blog/aktuelle-beitraege/"
+      ],
+      "regeln": 3,
+      "stichtag": "2026-09-01",
+      "stichtag_art": "gilt ab",
+      "zuletzt_gesehen": "2026-10-19"
     },
     "lohnsteuerrichtlinie": {
       "anzeige": "Lohnsteuer-richtlinie",
@@ -132,6 +223,24 @@
       "stichtag": "2026-08-02",
       "stichtag_art": "Umsetzungsfrist",
       "zuletzt_gesehen": "2026-09-28"
+    },
+    "steuererklaerung": {
+      "anzeige": "Steuererklärung",
+      "beleg": "Abgabefrist freiwillige Steuererklärung 2022 – Stichtag 31.12.2026",
+      "beleg_quelle": "https://www.aktuell-verein.de/blog/aktuelle-beitraege/",
+      "beleg_quelle_name": "Steuerblog | Aktuelle Beiträge vom Lohnsteuerhilfeverein",
+      "erstmals_gesehen": "2026-10-19",
+      "erwaehnungen": 2,
+      "laeufe": [
+        "2026-10-19"
+      ],
+      "quellen": [
+        "https://www.aktuell-verein.de/blog/aktuelle-beitraege/"
+      ],
+      "regeln": 3,
+      "stichtag": "2026-12-31",
+      "stichtag_art": "Stichtag",
+      "zuletzt_gesehen": "2026-10-19"
     },
     "steuerungsmechanismen": {
       "anzeige": "Steuerungsmechanismen",
